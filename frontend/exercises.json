@@ -4,19 +4,50 @@
     "name": "Kreuzheben",
     "instruction": "Kreuzheben. Stell dich hüftbreit hin, halte den Rücken gerade und bewege dich aus der Hüfte.",
     "prep_time": 10,
-    "duration": 8,
+    "duration": 15,
     "rep_time": 5,
     "sets": 3,
-    "rest_time": 20
+    "rest_time": 30
   },
   {
-    "id": "rueckenstrecker",
-    "name": "Rückenstrecker",
-    "instruction": "Leg dich auf den Bauch und hebe langsam Oberkörper und Arme an.",
-    "prep_time": 8,
-    "duration": 10,
-    "rep_time": 4,
-    "sets": 2,
-    "rest_time": 15
+    "id": "katzekuh",
+    "name": "Katze und Kuh",
+    "instruction": "Vierfüsslerstand - Einmal Hohlkreuz machen, einmal Katzenbuckel. Hohlkreuz startet. Durchgang endet mit Hohlkreuz.",
+    "prep_time": 10,
+    "duration": 15,
+    "rep_time": 3,
+    "sets": 3,
+    "rest_time": 30
+  }
+  ,
+  {
+    "id": "fersenschieben",
+    "name": "Fersenschieben",
+    "instruction": "Vierfüsslerstand - Einmal Hohlkreuz machen, einmal Katzenbuckel. Hohlkreuz startet. Durchgang endet mit Hohlkreuz.",
+    "prep_time": 10,
+    "duration": 15,
+    "rep_time": 3,
+    "sets": 3,
+    "rest_time": 30
+  }  ,
+  {
+    "id": "kniewippen",
+    "name": "Kniewippen",
+    "instruction": "Vierfüsslerstand - Einmal Hohlkreuz machen, einmal Katzenbuckel. Hohlkreuz startet. Durchgang endet mit Hohlkreuz.",
+    "prep_time": 10,
+    "duration": 15,
+    "rep_time": 3,
+    "sets": 3,
+    "rest_time": 30
+  },
+  {
+    "id": "schraegerbauch",
+    "name": "Schräger Bauch",
+    "instruction": "Vierfüsslerstand - Einmal Hohlkreuz machen, einmal Katzenbuckel. Hohlkreuz startet. Durchgang endet mit Hohlkreuz.",
+    "prep_time": 10,
+    "duration": 15,
+    "rep_time": 3,
+    "sets": 3,
+    "rest_time": 30
   }
 ]
