@@ -2,30 +2,198 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Stretch Coach</title>
   <style>
-    body { font-family:sans-serif; background:#f5f7fa; color:#222;
-           display:flex; flex-direction:column; align-items:center; justify-content:center;
-           height:100vh; text-align:center; }
-    h1 { margin-bottom:1em; }
-    #display { font-size:2.5em; margin:1em 0; min-height:2em; }
-    select,button { font-size:1.1em; padding:.5em 1em; margin:.3em;
-                    border:none; border-radius:6px; }
-    button { background:#4CAF50; color:#fff; cursor:pointer; }
-    button:disabled { background:#ccc; cursor:not-allowed; }
-    #stopBtn { background:#e74c3c; }
-    #skipBtn { background:#f39c12; }
+    :root {
+      color-scheme: light;
+      --bg-gradient: linear-gradient(135deg, #7f7fd5, #86a8e7, #91eae4);
+      --surface: rgba(255, 255, 255, 0.9);
+      --text-primary: #1a2a3a;
+      --text-secondary: #516170;
+      --accent: #3d8bff;
+      --accent-strong: #2f6ad8;
+      --accent-warn: #f39c12;
+      --accent-stop: #e74c3c;
+      --radius-large: 24px;
+      --shadow: 0 20px 40px rgba(26, 42, 58, 0.18);
+      font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+        "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 4vw 5vw;
+      background: var(--bg-gradient);
+      color: var(--text-primary);
+    }
+
+    .app-card {
+      width: min(440px, 100%);
+      padding: clamp(1.8rem, 4vw, 2.6rem);
+      background: var(--surface);
+      backdrop-filter: blur(10px);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: clamp(1rem, 2.5vw, 1.6rem);
+    }
+
+    header {
+      text-align: center;
+      display: grid;
+      gap: 0.4rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.9rem, 4vw, 2.4rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    header p {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    label {
+      font-weight: 600;
+      display: block;
+      margin-bottom: 0.4rem;
+    }
+
+    .input-group {
+      display: grid;
+      gap: 0.45rem;
+    }
+
+    select {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      font-size: 1rem;
+      border-radius: 16px;
+      border: 1px solid rgba(61, 139, 255, 0.2);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text-primary);
+      appearance: none;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    select:focus {
+      border-color: rgba(61, 139, 255, 0.6);
+      box-shadow: 0 0 0 4px rgba(61, 139, 255, 0.2);
+    }
+
+    #display {
+      min-height: 3.2rem;
+      display: grid;
+      place-items: center;
+      padding: 1.2rem;
+      font-size: clamp(1.6rem, 4.5vw, 2.4rem);
+      font-weight: 600;
+      border-radius: 20px;
+      background: rgba(61, 139, 255, 0.08);
+      color: var(--text-primary);
+      line-height: 1.3;
+    }
+
+    .actions {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    @media (min-width: 480px) {
+      .actions {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+    }
+
+    button {
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.85rem 1rem;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      color: #fff;
+      background: var(--accent);
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      box-shadow: 0 10px 20px rgba(61, 139, 255, 0.25);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.03);
+    }
+
+    button:active:not(:disabled) {
+      transform: translateY(0);
+      filter: brightness(0.98);
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      box-shadow: none;
+    }
+
+    #skipBtn {
+      background: var(--accent-warn);
+      box-shadow: 0 10px 20px rgba(243, 156, 18, 0.2);
+    }
+
+    #stopBtn {
+      background: var(--accent-stop);
+      box-shadow: 0 10px 20px rgba(231, 76, 60, 0.25);
+    }
+
+    footer {
+      text-align: center;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    footer span {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
   </style>
 </head>
 <body>
-  <h1>🧘 Stretch Coach</h1>
-  <label for="exerciseSelect">Übung wählen:</label>
-  <select id="exerciseSelect"><option>Lade Übungen...</option></select>
-  <div id="display">Bereit?</div>
-  <div>
-    <button id="startBtn" disabled>Start</button>
-    <button id="skipBtn" disabled>Weiter</button>
-    <button id="stopBtn" disabled>Abbrechen</button>
+  <div class="app-card">
+    <header>
+      <h1>🧘 Stretch Coach</h1>
+      <p>Starte dein geführtes Stretching – mit Sprachansagen und präzisem Timing.</p>
+    </header>
+
+    <div class="input-group">
+      <label for="exerciseSelect">Übung wählen</label>
+      <select id="exerciseSelect"><option>Lade Übungen...</option></select>
+    </div>
+
+    <div id="display">Bereit?</div>
+
+    <div class="actions">
+      <button id="startBtn" disabled>Start</button>
+      <button id="skipBtn" disabled>Weiter</button>
+      <button id="stopBtn" disabled>Abbrechen</button>
+    </div>
+
+    <footer>
+      <span>Bleib flexibel und achtsam ✨</span>
+    </footer>
   </div>
 
   <script>
