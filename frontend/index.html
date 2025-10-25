@@ -108,6 +108,17 @@
       line-height: 1.3;
     }
 
+    #instructionBox {
+      min-height: 3rem;
+      padding: 1rem 1.2rem;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.5;
+      box-shadow: inset 0 0 0 1px rgba(61, 139, 255, 0.12);
+    }
+
     .actions {
       display: grid;
       gap: 0.75rem;
@@ -189,6 +200,7 @@
     </div>
 
     <div id="display">Bereit?</div>
+    <div id="instructionBox" aria-live="polite"></div>
 
     <div class="actions">
       <button id="startBtn" disabled>Start</button>
@@ -218,6 +230,7 @@
     const skipBtn = document.getElementById("skipBtn");
     const stopBtn = document.getElementById("stopBtn");
     const select = document.getElementById("exerciseSelect");
+    const instructionBox = document.getElementById("instructionBox");
 
     // --- Übungen laden ---
     fetch("exercises.json")
@@ -225,9 +238,14 @@
       .then(data => {
         exercises = data;
         select.innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
-        startBtn.disabled = false;
+        exercise = exercises[0] ?? null;
+        updateInstructionPreview();
+        startBtn.disabled = exercises.length === 0;
       })
-      .catch(() => { select.innerHTML = "<option>Fehler beim Laden</option>"; });
+      .catch(() => {
+        select.innerHTML = "<option>Fehler beim Laden</option>";
+        instructionBox.textContent = "";
+      });
 
     countdownStepSelect.innerHTML = Array.from(
       { length: Math.floor((COUNTDOWN_MAX_MS - COUNTDOWN_MIN_MS) / COUNTDOWN_STEP_INCREMENT_MS) + 1 },
@@ -237,6 +255,14 @@
         return `<option value="${value}"${selected}>${value} ms</option>`;
       }
     ).join("");
+
+    function updateInstructionPreview() {
+      if (!exercise) {
+        instructionBox.textContent = "";
+        return;
+      }
+      instructionBox.textContent = `${exercise.name}. ${exercise.instruction}`;
+    }
 
     // --- Sprachfunktion ---
     function speak(text) {
@@ -304,9 +330,11 @@
       startBtn.disabled = true;
       stopBtn.disabled = false;
 
-      display.textContent = `Anleitung: ${exercise.name}`;
+      const instructionText = `${exercise.name}. ${exercise.instruction}`;
+      display.textContent = instructionText;
+      instructionBox.textContent = instructionText;
       await speak(`Pro Übungsdurchführung sind ${exercise.rep_time} Sekunden geplant.`);
-      await speak(exercise.instruction);
+      await speak(instructionText);
 
       for (let set = 1; set <= exercise.sets && !aborted; set++) {
         const withPrep = (set === 1);
@@ -338,11 +366,12 @@
     // --- Events ---
     select.addEventListener("change", () => {
       const id = select.value;
-      exercise = exercises.find(e => e.id === id);
+      exercise = exercises.find(e => e.id === id) ?? null;
+      updateInstructionPreview();
     });
 
     startBtn.addEventListener("click", () => {
-      exercise = exercises.find(e => e.id === select.value);
+      exercise = exercises.find(e => e.id === select.value) ?? null;
       if (exercise) doExercise();
     });
 
