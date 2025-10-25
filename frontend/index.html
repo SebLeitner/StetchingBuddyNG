@@ -183,6 +183,11 @@
       <select id="exerciseSelect"><option>Lade Übungen...</option></select>
     </div>
 
+    <div class="input-group">
+      <label for="countdownStepSelect">Countdown-Takt</label>
+      <select id="countdownStepSelect"></select>
+    </div>
+
     <div id="display">Bereit?</div>
 
     <div class="actions">
@@ -197,7 +202,12 @@
   </div>
 
   <script>
-    const COUNTDOWN_STEP_MS = 200;
+    const countdownStepSelect = document.getElementById("countdownStepSelect");
+
+    const COUNTDOWN_MIN_MS = 100;
+    const COUNTDOWN_MAX_MS = 1000;
+    const COUNTDOWN_STEP_INCREMENT_MS = 100;
+    let countdownStepMs = 200;
     let exercises = [];
     let exercise = null;
     let skipRequested = false;
@@ -218,6 +228,15 @@
         startBtn.disabled = false;
       })
       .catch(() => { select.innerHTML = "<option>Fehler beim Laden</option>"; });
+
+    countdownStepSelect.innerHTML = Array.from(
+      { length: Math.floor((COUNTDOWN_MAX_MS - COUNTDOWN_MIN_MS) / COUNTDOWN_STEP_INCREMENT_MS) + 1 },
+      (_, idx) => {
+        const value = COUNTDOWN_MIN_MS + idx * COUNTDOWN_STEP_INCREMENT_MS;
+        const selected = value === countdownStepMs ? " selected" : "";
+        return `<option value="${value}"${selected}>${value} ms</option>`;
+      }
+    ).join("");
 
     // --- Sprachfunktion ---
     function speak(text) {
@@ -248,7 +267,7 @@
         if (aborted) return;
         display.textContent = `${label}${label ? " " : ""}${i}`;
         await speak(i.toString());
-        await new Promise(r => setTimeout(r, COUNTDOWN_STEP_MS));
+        await new Promise(r => setTimeout(r, countdownStepMs));
       }
       if (finalCue) {
         display.textContent = finalCue;
@@ -286,6 +305,7 @@
       stopBtn.disabled = false;
 
       display.textContent = `Anleitung: ${exercise.name}`;
+      await speak(`Pro Übungsdurchführung sind ${exercise.rep_time} Sekunden geplant.`);
       await speak(exercise.instruction);
 
       for (let set = 1; set <= exercise.sets && !aborted; set++) {
@@ -327,6 +347,9 @@
     });
 
     skipBtn.addEventListener("click", () => { skipRequested = true; });
+    countdownStepSelect.addEventListener("change", () => {
+      countdownStepMs = Number(countdownStepSelect.value);
+    });
     stopBtn.addEventListener("click", () => {
       aborted = true;
       speechSynthesis.cancel();
