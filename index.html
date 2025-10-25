@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Stretch Coach</title>
+  <style>
+    body { font-family:sans-serif; background:#f5f7fa; color:#222;
+           display:flex; flex-direction:column; align-items:center; justify-content:center;
+           height:100vh; text-align:center; }
+    h1 { margin-bottom:1em; }
+    #display { font-size:2.5em; margin:1em 0; min-height:2em; }
+    select,button { font-size:1.1em; padding:.5em 1em; margin:.3em;
+                    border:none; border-radius:6px; }
+    button { background:#4CAF50; color:#fff; cursor:pointer; }
+    button:disabled { background:#ccc; cursor:not-allowed; }
+    #stopBtn { background:#e74c3c; }
+    #skipBtn { background:#f39c12; }
+  </style>
+</head>
+<body>
+  <h1>🧘 Stretch Coach</h1>
+  <label for="exerciseSelect">Übung wählen:</label>
+  <select id="exerciseSelect"><option>Lade Übungen...</option></select>
+  <div id="display">Bereit?</div>
+  <div>
+    <button id="startBtn" disabled>Start</button>
+    <button id="skipBtn" disabled>Weiter</button>
+    <button id="stopBtn" disabled>Abbrechen</button>
+  </div>
+
+  <script>
+    const COUNTDOWN_STEP_MS = 200;
+    let exercises = [];
+    let exercise = null;
+    let skipRequested = false;
+    let aborted = false;
+
+    const display = document.getElementById("display");
+    const startBtn = document.getElementById("startBtn");
+    const skipBtn = document.getElementById("skipBtn");
+    const stopBtn = document.getElementById("stopBtn");
+    const select = document.getElementById("exerciseSelect");
+
+    // --- Übungen laden ---
+    fetch("exercises.json")
+      .then(res => res.json())
+      .then(data => {
+        exercises = data;
+        select.innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+        startBtn.disabled = false;
+      })
+      .catch(() => { select.innerHTML = "<option>Fehler beim Laden</option>"; });
+
+    // --- Sprachfunktion ---
+    function speak(text) {
+      return new Promise(resolve => {
+        if (aborted) return resolve();
+        speechSynthesis.cancel();
+        const u = new SpeechSynthesisUtterance(text);
+        u.lang = "de-DE";
+        u.rate = 1;
+        u.onend = () => { clearInterval(check); skipBtn.disabled = true; resolve(); };
+        speechSynthesis.speak(u);
+        skipRequested = false;
+        skipBtn.disabled = false;
+        const check = setInterval(() => {
+          if (skipRequested || aborted) {
+            speechSynthesis.cancel();
+            clearInterval(check);
+            skipBtn.disabled = true;
+            resolve();
+          }
+        }, 100);
+      });
+    }
+
+    // --- Countdown ---
+    async function countdown(seconds, label = "", finalCue = "") {
+      for (let i = seconds; i > 0; i--) {
+        if (aborted) return;
+        display.textContent = `${label}${label ? " " : ""}${i}`;
+        await speak(i.toString());
+        await new Promise(r => setTimeout(r, COUNTDOWN_STEP_MS));
+      }
+      if (finalCue) {
+        display.textContent = finalCue;
+        await speak(finalCue);
+      }
+    }
+
+    // --- Satz ---
+    async function runSet(setNr, withPrep) {
+      if (aborted) return;
+      if (withPrep) {
+        display.textContent = `Vorbereitung (Satz ${setNr})...`;
+        await speak(`${exercise.prep_time} Sekunden Countdown`);
+        await countdown(exercise.prep_time, "", "Los!");
+      } else {
+        await speak("Weiter mit dem nächsten Satz. Los!");
+      }
+
+      for (let i = 1; i <= exercise.duration && !aborted; i++) {
+        display.textContent = `Wiederholung ${i}`;
+        await new Promise(r => setTimeout(r, exercise.rep_time * 1000));
+        await speak(i.toString());
+      }
+
+      if (!aborted) {
+        display.textContent = `Satz ${setNr} beendet!`;
+        await speak(`Satz ${setNr} beendet.`);
+      }
+    }
+
+    // --- Training ---
+    async function doExercise() {
+      aborted = false;
+      startBtn.disabled = true;
+      stopBtn.disabled = false;
+
+      display.textContent = `Anleitung: ${exercise.name}`;
+      await speak(exercise.instruction);
+
+      for (let set = 1; set <= exercise.sets && !aborted; set++) {
+        const withPrep = (set === 1);
+        await runSet(set, withPrep);
+        if (aborted) break;
+
+        if (set < exercise.sets) {
+          await speak(`Pause ${exercise.rest_time} Sekunden.`);
+          display.textContent = `Pause: ${exercise.rest_time}s`;
+          await new Promise(r => setTimeout(r, (exercise.rest_time - 5) * 1000));
+          if (aborted) break;
+          await speak("Noch fünf Sekunden");
+          await countdown(5, "", ""); // kein Los! hier
+        }
+      }
+
+      if (!aborted) {
+        display.textContent = "Fertig! Gut gemacht 🎉";
+        await speak("Fertig! Gut gemacht.");
+      } else {
+        display.textContent = "Abgebrochen.";
+        await speak("Training abgebrochen.");
+      }
+
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    }
+
+    // --- Events ---
+    select.addEventListener("change", () => {
+      const id = select.value;
+      exercise = exercises.find(e => e.id === id);
+    });
+
+    startBtn.addEventListener("click", () => {
+      exercise = exercises.find(e => e.id === select.value);
+      if (exercise) doExercise();
+    });
+
+    skipBtn.addEventListener("click", () => { skipRequested = true; });
+    stopBtn.addEventListener("click", () => {
+      aborted = true;
+      speechSynthesis.cancel();
+      display.textContent = "Abbruch...";
+      startBtn.disabled = false;
+      stopBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>
