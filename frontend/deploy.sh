@@ -6,7 +6,7 @@ set -euo pipefail
 # ============================================
 
 BUCKET_NAME="sbuddy.leitnersoft.com"
-DISTRIBUTION_ID="d1spztj11put9r.cloudfront.net"  # CloudFront domain
+DISTRIBUTION_ID="E300U192H6ZHKW"  # CloudFront domain
 SRC_DIR="$(pwd)"
 
 echo "=== 🧘 Stretch Coach App Deployment ==="
