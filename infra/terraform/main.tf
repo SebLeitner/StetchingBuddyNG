@@ -231,7 +231,9 @@ resource "aws_iam_role_policy" "progress_lambda_custom" {
         Effect   = "Allow",
         Action   = [
           "dynamodb:DescribeTable",
-          "dynamodb:PutItem"
+          "dynamodb:PutItem",
+          "dynamodb:Scan",
+          "dynamodb:Query"
         ]
         Resource = aws_dynamodb_table.exercise_completions.arn
       }
