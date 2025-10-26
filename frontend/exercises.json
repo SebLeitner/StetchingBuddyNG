@@ -9,7 +9,7 @@
     "sets": 3,
     "rest_time": 30,
     "mindfulness": "yes",
-    "break_bell": "no"
+    "break_bell": "yes"
   },
   {
     "id": "katzekuh",
@@ -21,7 +21,7 @@
     "sets": 3,
     "rest_time": 30,
     "mindfulness": "yes",
-    "break_bell": "no"
+    "break_bell": "yes"
   },
   {
     "id": "fersenschieben",
@@ -33,7 +33,7 @@
     "sets": 3,
     "rest_time": 30,
     "mindfulness": "yes",
-    "break_bell": "no"
+    "break_bell": "yes"
   },
   {
     "id": "kniewippen",
@@ -45,7 +45,7 @@
     "sets": 3,
     "rest_time": 30,
     "mindfulness": "yes",
-    "break_bell": "no"
+    "break_bell": "yes"
   },
   {
     "id": "schraegerbauch_link",
@@ -57,7 +57,7 @@
     "sets": 2,
     "rest_time": 30,
     "mindfulness": "yes",
-    "break_bell": "no"
+    "break_bell": "yes"
   },
   {
     "id": "schraegerbauch_rechts",
@@ -69,7 +69,7 @@
     "sets": 2,
     "rest_time": 30,
     "mindfulness": "yes",
-    "break_bell": "no"
+    "break_bell": "yes"
   },
   {
     "id": "gewicht_halten",
