@@ -951,6 +951,10 @@
     const REMOTE_BACKOFF_LOG_THROTTLE_MS = 3000;
     const SILENT_AUDIO_SRC =
       "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
+    const BREAK_BELL_PROMPT_LEAD_MS = 2000;
+    let breakBellAudioElement = null;
+    let breakBellAudioReadyPromise = null;
+
     const now = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
 
     const speechConfig = window.STRETCH_COACH_CONFIG || {};
@@ -1210,7 +1214,62 @@
       }
     }
 
-    async function playBreakBellCue() {
+    function getBreakBellAudioElement() {
+      if (!breakBellAudioElement) {
+        breakBellAudioElement = new Audio("./klangschale.mp3");
+        breakBellAudioElement.preload = "auto";
+        breakBellAudioElement.playsInline = true;
+      }
+      return breakBellAudioElement;
+    }
+
+    async function ensureBreakBellAudioReady() {
+      const audio = getBreakBellAudioElement();
+      if (audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) {
+        return audio;
+      }
+      if (!breakBellAudioReadyPromise) {
+        breakBellAudioReadyPromise = new Promise((resolve, reject) => {
+          const cleanup = () => {
+            audio.removeEventListener("canplaythrough", onReady);
+            audio.removeEventListener("loadeddata", onReady);
+            audio.removeEventListener("error", onError);
+          };
+
+          const onReady = () => {
+            cleanup();
+            breakBellAudioReadyPromise = null;
+            resolve(audio);
+          };
+
+          const onError = () => {
+            cleanup();
+            const error = audio.error || new Error("Klangschale konnte nicht geladen werden.");
+            breakBellAudioReadyPromise = null;
+            reject(error);
+          };
+
+          audio.addEventListener("canplaythrough", onReady, { once: true });
+          audio.addEventListener("loadeddata", onReady, { once: true });
+          audio.addEventListener("error", onError, { once: true });
+
+          try {
+            audio.load();
+          } catch (_err) {
+            // ignore load errors
+          }
+        });
+      }
+
+      try {
+        return await breakBellAudioReadyPromise;
+      } catch (error) {
+        breakBellAudioReadyPromise = null;
+        throw error;
+      }
+    }
+
+    async function playBreakBellFallbackCue() {
       try {
         const contextUnlocked = await unlockAudioContext();
         if (!contextUnlocked) {
@@ -1254,6 +1313,39 @@
         oscillator.stop(startTime + duration + 0.1);
       } catch (error) {
         appendDebug("Klangschale konnte nicht abgespielt werden.", describeError(error));
+      }
+    }
+
+    async function playBreakBellCue() {
+      const unlocked = await ensureAudioUnlocked().catch(() => false);
+      if (!unlocked) {
+        if (lastAudioUnlockError) {
+          appendDebug("Klangschale konnte nicht abgespielt werden.", lastAudioUnlockError);
+        }
+        await playBreakBellFallbackCue();
+        return;
+      }
+
+      try {
+        const audio = await ensureBreakBellAudioReady();
+        try {
+          audio.pause();
+        } catch (_err) {
+          // ignore pause errors
+        }
+        try {
+          audio.currentTime = 0;
+        } catch (_err) {
+          // ignore reset errors
+        }
+        audio.muted = false;
+        const playPromise = audio.play();
+        if (playPromise && typeof playPromise.then === "function") {
+          await playPromise;
+        }
+      } catch (error) {
+        appendDebug("Klangschale konnte nicht abgespielt werden.", describeError(error));
+        await playBreakBellFallbackCue();
       }
     }
 
@@ -2589,8 +2681,33 @@
             if (wantsMindfulness) {
               const beforePromptMs = Math.floor(restWaitMs / 2);
               const afterPromptMs = Math.max(restWaitMs - beforePromptMs, 0);
+              const shouldPlayBreakBellDuringPause = isBreakBellEnabled();
 
-              if (beforePromptMs > 0) {
+              if (shouldPlayBreakBellDuringPause) {
+                const waitBeforeChime = Math.max(
+                  0,
+                  Math.min(beforePromptMs, restWaitMs) - BREAK_BELL_PROMPT_LEAD_MS
+                );
+                if (waitBeforeChime > 0) {
+                  await waitWithPauseSupport(waitBeforeChime, { onResume: restorePauseDisplay });
+                  if (aborted) break;
+                }
+
+                if (!aborted) {
+                  await playBreakBellCue();
+                  if (aborted) break;
+                }
+
+                const waitAfterChimeBeforePrompt = Math.min(
+                  BREAK_BELL_PROMPT_LEAD_MS,
+                  Math.max(beforePromptMs - waitBeforeChime, 0),
+                  Math.max(restWaitMs - waitBeforeChime, 0)
+                );
+                if (waitAfterChimeBeforePrompt > 0 && !aborted) {
+                  await waitWithPauseSupport(waitAfterChimeBeforePrompt, { onResume: restorePauseDisplay });
+                  if (aborted) break;
+                }
+              } else if (beforePromptMs > 0) {
                 await waitWithPauseSupport(beforePromptMs, { onResume: restorePauseDisplay });
                 if (aborted) break;
               }
