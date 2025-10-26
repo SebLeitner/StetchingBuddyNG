@@ -8,7 +8,7 @@
     "rep_time": 5,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "no"
+    "mindfulness": "yes"
   },
   {
     "id": "katzekuh",
@@ -19,7 +19,7 @@
     "rep_time": 2,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "no"
+    "mindfulness": "yes"
   },
   {
     "id": "fersenschieben",
@@ -30,7 +30,7 @@
     "rep_time": 3,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "no"
+    "mindfulness": "yes"
   },
   {
     "id": "kniewippen",
@@ -41,7 +41,7 @@
     "rep_time": 9,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "no"
+    "mindfulness": "yes"
   },
   {
     "id": "schraegerbauch_link",
@@ -52,7 +52,7 @@
     "rep_time": 6,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "no"
+    "mindfulness": "yes"
   },
   {
     "id": "schraegerbauch_rechts",
@@ -63,7 +63,7 @@
     "rep_time": 6,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "no"
+    "mindfulness": "yes"
   },
   {
     "id": "Test Übung",
