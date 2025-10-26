@@ -7,7 +7,8 @@
     "duration": 15,
     "rep_time": 5,
     "sets": 3,
-    "rest_time": 30
+    "rest_time": 30,
+    "mindfulness": "no"
   },
   {
     "id": "katzekuh",
@@ -17,9 +18,9 @@
     "duration": 15,
     "rep_time": 2,
     "sets": 3,
-    "rest_time": 30
-  }
-  ,
+    "rest_time": 30,
+    "mindfulness": "no"
+  },
   {
     "id": "fersenschieben",
     "name": "Fersenschieben",
@@ -28,8 +29,9 @@
     "duration": 15,
     "rep_time": 3,
     "sets": 3,
-    "rest_time": 30
-  }  ,
+    "rest_time": 30,
+    "mindfulness": "no"
+  },
   {
     "id": "kniewippen",
     "name": "Kniewippen",
@@ -38,7 +40,8 @@
     "duration": 15,
     "rep_time": 9,
     "sets": 3,
-    "rest_time": 30
+    "rest_time": 30,
+    "mindfulness": "no"
   },
   {
     "id": "schraegerbauch_link",
@@ -48,7 +51,8 @@
     "duration": 15,
     "rep_time": 6,
     "sets": 3,
-    "rest_time": 30
+    "rest_time": 30,
+    "mindfulness": "no"
   },
   {
     "id": "schraegerbauch_rechts",
@@ -58,8 +62,7 @@
     "duration": 15,
     "rep_time": 6,
     "sets": 3,
-    "rest_time": 30
+    "rest_time": 30,
+    "mindfulness": "no"
   }
 ]
-
-
