@@ -373,7 +373,26 @@
 
     .main-actions {
       display: grid;
+      gap: 1.25rem;
+    }
+
+    .primary-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 0.75rem;
+      align-items: stretch;
+    }
+
+    @media (max-width: 420px) {
+      .primary-actions {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .secondary-actions {
+      display: grid;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
     }
 
     .primary-button {
@@ -398,6 +417,29 @@
       cursor: not-allowed;
       opacity: 0.6;
       box-shadow: none;
+    }
+
+    .beats-radio-button {
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.95rem 1.2rem;
+      border-radius: 16px;
+      border: none;
+      cursor: pointer;
+      color: #4b3a00;
+      background: linear-gradient(135deg, #fbe79d, #facc15);
+      box-shadow: 0 12px 24px rgba(250, 204, 21, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .beats-radio-button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .beats-radio-button:active {
+      transform: translateY(0);
+      filter: brightness(0.97);
     }
 
     .secondary-button {
@@ -647,8 +689,13 @@
     </div>
 
     <div class="main-actions">
-      <button id="openSessionBtn" class="primary-button" type="button" disabled>Start</button>
-      <button id="viewStatsBtn" type="button" class="stats-button">Statistiken ansehen</button>
+      <div class="primary-actions">
+        <button id="openSessionBtn" class="primary-button" type="button" disabled>Start</button>
+        <button id="beatsRadioBtn" class="beats-radio-button" type="button">Beats Radio</button>
+      </div>
+      <div class="secondary-actions">
+        <button id="viewStatsBtn" type="button" class="stats-button">Statistiken ansehen</button>
+      </div>
     </div>
 
     <div id="statusMessage" role="status" aria-live="polite" hidden></div>
@@ -705,6 +752,7 @@
     const countdownStepSelect = document.getElementById("countdownStepSelect");
     const viewStatsBtn = document.getElementById("viewStatsBtn");
     const openSessionBtn = document.getElementById("openSessionBtn");
+    const beatsRadioBtn = document.getElementById("beatsRadioBtn");
     const debugLogBtn = document.getElementById("debugLogBtn");
     const exerciseModal = document.getElementById("exerciseModal");
     const sessionCloseBtn = document.getElementById("sessionCloseBtn");
@@ -758,6 +806,7 @@
     const statusMessage = document.getElementById("statusMessage");
     const voiceModeRadios = Array.from(document.querySelectorAll('input[name="voiceMode"]'));
     const voiceModeHint = document.getElementById("voiceModeHint");
+    const voiceModeControl = document.querySelector(".segmented-control");
     const debugPanel = document.getElementById("debugPanel");
     const debugLog = document.getElementById("debugLog");
     const debugEntries = [];
@@ -1321,10 +1370,16 @@
 
     function updateVoiceModeHint() {
       if (!voiceModeHint) return;
-      voiceModeHint.textContent =
+      const message =
         voiceMode === "auto"
           ? "Nutze bevorzugt die Online-Stimme. Bei Ausfällen springt die lokale Stimme ein."
           : "Die Browser-Stimme übernimmt alle Ansagen – funktioniert auch offline.";
+      voiceModeHint.dataset.message = message;
+      if (voiceModeHint.dataset.active === "true") {
+        voiceModeHint.textContent = message;
+      } else {
+        voiceModeHint.textContent = "";
+      }
     }
 
     function buildInstructionSpeech(ex) {
@@ -1342,6 +1397,10 @@
     const initialVoiceMode = voiceModeRadios.find(radio => radio.checked)?.value;
     if (initialVoiceMode) {
       voiceMode = initialVoiceMode;
+    }
+
+    if (voiceModeHint) {
+      voiceModeHint.dataset.active = "false";
     }
 
     updateVoiceModeHint();
@@ -1365,6 +1424,25 @@
         updateVoiceModeHint();
       });
     });
+
+    if (voiceModeControl && voiceModeHint) {
+      const showVoiceModeHint = () => {
+        voiceModeHint.dataset.active = "true";
+        voiceModeHint.textContent = voiceModeHint.dataset.message || "";
+      };
+      const hideVoiceModeHint = () => {
+        voiceModeHint.dataset.active = "false";
+        voiceModeHint.textContent = "";
+      };
+      voiceModeControl.addEventListener("mouseenter", showVoiceModeHint);
+      voiceModeControl.addEventListener("mouseleave", hideVoiceModeHint);
+      voiceModeControl.addEventListener("focusin", showVoiceModeHint);
+      voiceModeControl.addEventListener("focusout", event => {
+        if (!voiceModeControl.contains(event.relatedTarget)) {
+          hideVoiceModeHint();
+        }
+      });
+    }
 
     function base64ToBlob(base64, mimeType = "audio/mpeg") {
       const binary = atob(base64);
@@ -2509,6 +2587,19 @@
       debugModal.addEventListener("click", event => {
         if (event.target === debugModal) {
           closeModal(debugModal);
+        }
+      });
+    }
+
+    if (beatsRadioBtn) {
+      beatsRadioBtn.addEventListener("click", () => {
+        const beatsWindow = window.open(
+          "https://www.beatsradio.de/",
+          "_blank",
+          "noopener,noreferrer"
+        );
+        if (beatsWindow) {
+          beatsWindow.focus();
         }
       });
     }
