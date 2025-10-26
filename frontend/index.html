@@ -713,6 +713,7 @@
     const exerciseFacts = document.getElementById("exerciseFacts");
     const sessionSummary = document.getElementById("sessionSummary");
     const sessionControls = document.getElementById("sessionControls");
+    const exerciseOverviewSection = document.querySelector(".exercise-overview");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -956,6 +957,9 @@
         continueBtn.disabled = true;
         continueBtn.textContent = "Weiter";
       }
+      if (exerciseOverviewSection) {
+        exerciseOverviewSection.hidden = false;
+      }
       if (pauseBtn) {
         pauseBtn.disabled = true;
       }
@@ -994,6 +998,9 @@
       if (continueBtn) {
         continueBtn.disabled = true;
       }
+      if (exerciseOverviewSection) {
+        exerciseOverviewSection.hidden = true;
+      }
       if (pauseBtn) {
         pauseBtn.disabled = false;
       }
@@ -1027,6 +1034,9 @@
       if (continueBtn) {
         continueBtn.disabled = true;
         continueBtn.textContent = "Weiter";
+      }
+      if (exerciseOverviewSection) {
+        exerciseOverviewSection.hidden = false;
       }
       if (pauseBtn) {
         pauseBtn.disabled = true;
@@ -1064,6 +1074,7 @@
       }
       if (continueBtn) {
         continueBtn.disabled = true;
+        continueBtn.textContent = "Weiter";
       }
     }
 
@@ -1080,12 +1091,17 @@
       }
       if (continueBtn) {
         continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
       }
       appendDebug("Pause aktiviert.");
       if (display) {
         display.textContent = "Pause aktiv!";
       }
       await speak("Pause aktiv!");
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
+      }
       await new Promise(resolve => {
         pauseResumeResolver = resolve;
       });
@@ -1107,12 +1123,17 @@
       }
       if (continueBtn) {
         continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
       }
       appendDebug("Countdown wird angehalten.");
       if (display) {
         display.textContent = "Countdown angehalten";
       }
       await speak("Countdown angehalten");
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
+      }
       await new Promise(resolve => {
         pauseResumeResolver = resolve;
       });
@@ -1128,6 +1149,7 @@
       pauseResumeResolver = null;
       if (continueBtn) {
         continueBtn.disabled = true;
+        continueBtn.textContent = "Weiter";
       }
       appendDebug("Pause wird beendet.");
       if (pauseContext === "countdown") {
