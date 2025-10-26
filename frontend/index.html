@@ -733,6 +733,7 @@
     let pauseRequested = false;
     let pauseAwaitingResume = false;
     let pauseResumeResolver = null;
+    let pauseContext = null;
     const hasBrowserSpeech = "speechSynthesis" in window;
     let currentAudio = null;
     let currentAudioUrl = null;
@@ -947,6 +948,7 @@
       pauseRequested = false;
       pauseAwaitingResume = false;
       pauseResumeResolver = null;
+      pauseContext = null;
       if (startBtn) {
         startBtn.hidden = false;
         startBtn.disabled = false;
@@ -985,6 +987,7 @@
       pauseRequested = false;
       pauseAwaitingResume = false;
       pauseResumeResolver = null;
+      pauseContext = null;
       resetProgress();
       if (startBtn) {
         startBtn.disabled = true;
@@ -1016,6 +1019,7 @@
       pauseRequested = false;
       pauseAwaitingResume = false;
       pauseResumeResolver = null;
+      pauseContext = null;
       if (sessionControls) {
         sessionControls.hidden = true;
       }
@@ -1053,6 +1057,7 @@
         const resolver = pauseResumeResolver;
         pauseResumeResolver = null;
         pauseAwaitingResume = false;
+        pauseContext = null;
         try {
           resolver();
         } catch (_err) {
@@ -1060,6 +1065,7 @@
         }
       } else {
         pauseAwaitingResume = false;
+        pauseContext = null;
       }
       if (continueBtn) {
         continueBtn.disabled = true;
@@ -1073,6 +1079,7 @@
       }
       pauseRequested = false;
       pauseAwaitingResume = true;
+      pauseContext = "default";
       if (pauseBtn) {
         pauseBtn.disabled = true;
       }
@@ -1092,6 +1099,33 @@
       }
     }
 
+    async function handleCountdownPause() {
+      if (!pauseRequested || aborted) {
+        pauseRequested = false;
+        return;
+      }
+      pauseRequested = false;
+      pauseAwaitingResume = true;
+      pauseContext = "countdown";
+      if (pauseBtn) {
+        pauseBtn.disabled = true;
+      }
+      if (continueBtn) {
+        continueBtn.disabled = false;
+      }
+      appendDebug("Countdown wird angehalten.");
+      if (display) {
+        display.textContent = "Countdown angehalten";
+      }
+      await speak("Countdown angehalten");
+      await new Promise(resolve => {
+        pauseResumeResolver = resolve;
+      });
+      if (pauseBtn && !aborted) {
+        pauseBtn.disabled = false;
+      }
+    }
+
     async function resumeFromPause() {
       if (!pauseAwaitingResume) return;
       pauseAwaitingResume = false;
@@ -1101,11 +1135,20 @@
         continueBtn.disabled = true;
       }
       appendDebug("Pause wird beendet.");
-      if (display) {
-        display.textContent = "Pause endet in 10 Sekunden";
+      if (pauseContext === "countdown") {
+        pauseContext = null;
+        if (display) {
+          display.textContent = "Countdown wird fortgesetzt";
+        }
+        await speak("Countdown wird fortgesetzt");
+      } else {
+        if (display) {
+          display.textContent = "Pause endet in 10 Sekunden";
+        }
+        await speak("Pause Ende in 10 Sekunden");
+        await countdown(10, "", "");
+        pauseContext = null;
       }
-      await speak("Pause Ende in 10 Sekunden");
-      await countdown(10, "", "");
       if (pauseBtn && !aborted) {
         pauseBtn.disabled = false;
       }
@@ -1830,13 +1873,37 @@
 
     // --- Countdown ---
     async function countdown(seconds, label = "", finalCue = "") {
-      for (let i = seconds; i > 0; i--) {
+      let remaining = seconds;
+      const buildLabel = value => `${label}${label ? " " : ""}${value}`;
+      while (remaining > 0) {
         if (aborted) return;
-        display.textContent = `${label}${label ? " " : ""}${i}`;
-        await speak(i.toString());
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+          continue;
+        }
+        const text = buildLabel(remaining);
+        display.textContent = text;
+        await speak(remaining.toString());
+        if (aborted) return;
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+          continue;
+        }
         await new Promise(r => setTimeout(r, countdownStepMs));
+        if (aborted) return;
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+        }
+        remaining -= 1;
       }
-      if (finalCue) {
+      if (finalCue && !aborted) {
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+        }
         display.textContent = finalCue;
         await speak(finalCue);
       }
