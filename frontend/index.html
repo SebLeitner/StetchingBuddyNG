@@ -487,6 +487,9 @@
       display: grid;
       gap: 1.5rem;
       padding: clamp(1.6rem, 4vw, 2.2rem);
+      max-height: min(90vh, 720px);
+      overflow-y: auto;
+      font-size: 0.95rem;
     }
 
     .modal-card--narrow {
@@ -518,14 +521,7 @@
 
     .exercise-overview {
       display: grid;
-      gap: 0.75rem;
-    }
-
-    .exercise-description {
-      margin: 0;
-      font-size: 1rem;
-      color: var(--text-primary);
-      line-height: 1.5;
+      gap: 0.65rem;
     }
 
     .exercise-facts {
@@ -537,7 +533,7 @@
     }
 
     .exercise-facts li {
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       padding: 0.65rem 0.8rem;
       border-radius: 12px;
       background: rgba(61, 139, 255, 0.08);
@@ -671,7 +667,6 @@
       </header>
       <div class="modal-content">
         <section class="exercise-overview">
-          <p id="exerciseDescription" class="exercise-description"></p>
           <ul id="exerciseFacts" class="exercise-facts"></ul>
         </section>
         <section class="session-stage">
@@ -715,7 +710,6 @@
     const sessionCloseBtn = document.getElementById("sessionCloseBtn");
     const exerciseModalTitle = document.getElementById("exerciseModalTitle");
     const exerciseModalSubtitle = document.getElementById("exerciseModalSubtitle");
-    const exerciseDescription = document.getElementById("exerciseDescription");
     const exerciseFacts = document.getElementById("exerciseFacts");
     const sessionSummary = document.getElementById("sessionSummary");
     const sessionControls = document.getElementById("sessionControls");
@@ -904,9 +898,6 @@
         } else {
           exerciseModalSubtitle.textContent = "Dein persönlicher Stretch Buddy begleitet dich.";
         }
-      }
-      if (exerciseDescription) {
-        exerciseDescription.textContent = ex && ex.instruction ? ex.instruction : "";
       }
       if (exerciseFacts) {
         if (!ex) {
