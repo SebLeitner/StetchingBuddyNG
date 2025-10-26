@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stretch Coach – Fortschritt</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-gradient: linear-gradient(135deg, #7f7fd5, #86a8e7, #91eae4);
+        --surface: rgba(255, 255, 255, 0.9);
+        --surface-strong: rgba(255, 255, 255, 0.98);
+        --text-primary: #1a2a3a;
+        --text-secondary: #516170;
+        --accent: #3d8bff;
+        --accent-strong: #2f6ad8;
+        --accent-soft: rgba(61, 139, 255, 0.08);
+        --accent-border: rgba(61, 139, 255, 0.2);
+        --radius-large: 24px;
+        --shadow: 0 18px 32px rgba(26, 42, 58, 0.15);
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+          "Helvetica Neue", Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: stretch;
+        justify-content: center;
+        padding: clamp(1.5rem, 4vw, 3rem);
+        background: var(--bg-gradient);
+        color: var(--text-primary);
+      }
+
+      main {
+        width: min(1080px, 100%);
+        display: grid;
+        gap: clamp(1.5rem, 3vw, 2.5rem);
+      }
+
+      .card {
+        background: var(--surface);
+        border-radius: var(--radius-large);
+        padding: clamp(1.5rem, 3vw, 2.5rem);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(8px);
+      }
+
+      header.card {
+        display: grid;
+        gap: 0.6rem;
+        text-align: center;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 2.6rem);
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 1rem;
+      }
+
+      .summary-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      @media (min-width: 720px) {
+        .summary-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      .summary-tile {
+        background: var(--surface-strong);
+        border-radius: 18px;
+        padding: 1.1rem 1.3rem;
+        border: 1px solid rgba(61, 139, 255, 0.15);
+        box-shadow: 0 12px 22px rgba(26, 42, 58, 0.12);
+        display: grid;
+        gap: 0.3rem;
+      }
+
+      .summary-label {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+      }
+
+      .summary-value {
+        font-weight: 700;
+        font-size: clamp(1.6rem, 4vw, 2.2rem);
+      }
+
+      .summary-hint {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+
+      .section-title {
+        margin: 0 0 0.6rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+      }
+
+      .list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .list-item {
+        padding: 0.9rem 1rem;
+        border-radius: 16px;
+        background: var(--accent-soft);
+        border: 1px solid var(--accent-border);
+        display: flex;
+        justify-content: space-between;
+        gap: 1.5rem;
+      }
+
+      .list-item strong {
+        font-weight: 600;
+      }
+
+      .table-card {
+        overflow: hidden;
+        padding: 0;
+      }
+
+      .table-header {
+        padding: 1.6rem 1.8rem 0.8rem;
+      }
+
+      .table-container {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 640px;
+      }
+
+      thead {
+        background: rgba(61, 139, 255, 0.1);
+      }
+
+      th,
+      td {
+        padding: 0.85rem 1rem;
+        text-align: left;
+        border-bottom: 1px solid rgba(26, 42, 58, 0.1);
+        font-size: 0.9rem;
+      }
+
+      tbody tr:last-child td {
+        border-bottom: none;
+      }
+
+      tbody tr:nth-child(odd) {
+        background: rgba(61, 139, 255, 0.06);
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: space-between;
+        padding: 0 1.8rem 1.6rem;
+      }
+
+      button,
+      a.button-link {
+        font-size: 0.95rem;
+        font-weight: 600;
+        padding: 0.75rem 1.2rem;
+        border-radius: 14px;
+        border: none;
+        cursor: pointer;
+        color: #fff;
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        box-shadow: 0 12px 22px rgba(61, 139, 255, 0.28);
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        transition: transform 0.2s ease, filter 0.2s ease;
+      }
+
+      button:hover,
+      a.button-link:hover {
+        transform: translateY(-1px);
+        filter: brightness(1.05);
+      }
+
+      button:active,
+      a.button-link:active {
+        transform: translateY(0);
+        filter: brightness(0.95);
+      }
+
+      button:disabled {
+        opacity: 0.65;
+        cursor: progress;
+        box-shadow: none;
+      }
+
+      .status {
+        margin-top: 1rem;
+        text-align: center;
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+      }
+
+      .status[data-type="error"] {
+        color: #a12315;
+      }
+
+      .status[data-type="empty"] {
+        color: #8c5a05;
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .chip {
+        padding: 0.4rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(26, 42, 58, 0.08);
+        font-size: 0.85rem;
+      }
+
+      footer {
+        text-align: center;
+        color: rgba(255, 255, 255, 0.9);
+        font-size: 0.85rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header class="card">
+        <h1>📈 Trainingsfortschritt</h1>
+        <p>Hier findest du alle aufgezeichneten Stretching-Einheiten und hilfreiche Statistiken.</p>
+      </header>
+
+      <section class="card">
+        <div class="summary-grid">
+          <div class="summary-tile">
+            <span class="summary-label">Einträge gesamt</span>
+            <span class="summary-value" id="totalEntries">–</span>
+            <p class="summary-hint">Anzahl aller aufgezeichneten Sessions.</p>
+          </div>
+          <div class="summary-tile">
+            <span class="summary-label">Übungen</span>
+            <span class="summary-value" id="uniqueExercises">–</span>
+            <p class="summary-hint" id="exerciseSummaryHint">Keine Übungsdaten verfügbar.</p>
+          </div>
+          <div class="summary-tile">
+            <span class="summary-label">Zuletzt aktualisiert</span>
+            <span class="summary-value" id="lastUpdate">–</span>
+            <p class="summary-hint">Letzte erfasste Einheit.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Top-Übungen</h2>
+        <ul class="list" id="topExercises"></ul>
+        <p class="status" id="exerciseStatus" hidden></p>
+      </section>
+
+      <section class="card table-card">
+        <div class="table-header">
+          <h2 class="section-title">Alle Einträge</h2>
+          <div class="chips" id="columnChips"></div>
+        </div>
+        <div class="table-container">
+          <table aria-live="polite">
+            <thead>
+              <tr id="tableHeadRow"></tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="actions">
+          <button id="refreshBtn" type="button">Aktualisieren</button>
+          <a class="button-link" href="./index.html">Zurück zur App</a>
+        </div>
+        <p class="status" id="tableStatus"></p>
+      </section>
+
+      <footer>
+        Stretch Coach – Bleib flexibel und achtsam ✨
+      </footer>
+    </main>
+
+    <script>
+      const API_URL = "https://hr9yi4qsmg.execute-api.us-east-1.amazonaws.com/api/exercise-completions";
+      const refreshBtn = document.getElementById("refreshBtn");
+      const totalEntriesEl = document.getElementById("totalEntries");
+      const uniqueExercisesEl = document.getElementById("uniqueExercises");
+      const lastUpdateEl = document.getElementById("lastUpdate");
+      const topExercisesList = document.getElementById("topExercises");
+      const exerciseSummaryHint = document.getElementById("exerciseSummaryHint");
+      const exerciseStatus = document.getElementById("exerciseStatus");
+      const columnChips = document.getElementById("columnChips");
+      const tableHeadRow = document.getElementById("tableHeadRow");
+      const tableBody = document.getElementById("tableBody");
+      const tableStatus = document.getElementById("tableStatus");
+
+      const GROUPING_KEYS = ["exerciseName", "exercise", "name", "title", "exerciseId"];
+      const TIME_KEYS = ["completedAt", "timestamp", "createdAt", "updatedAt", "time", "date"];
+      const USER_KEYS = ["clientId", "userId", "participantId", "profileId"];
+      const PRIORITY_COLUMNS = [
+        "completedAt",
+        "timestamp",
+        "exerciseName",
+        "exerciseId",
+        "clientId",
+        "duration",
+        "count",
+      ];
+
+      let latestData = [];
+
+      function formatDate(value) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+          return null;
+        }
+        return new Intl.DateTimeFormat("de-DE", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(date);
+      }
+
+      function formatValue(key, value) {
+        if (value === null || value === undefined || value === "") {
+          return "–";
+        }
+
+        if (typeof value === "number") {
+          if (key.toLowerCase().includes("duration")) {
+            const seconds = Math.round(value / 1000);
+            return `${seconds}s`;
+          }
+          return new Intl.NumberFormat("de-DE").format(value);
+        }
+
+        if (typeof value === "string") {
+          const lowerKey = key.toLowerCase();
+          if (lowerKey.includes("time") || lowerKey.includes("date")) {
+            const formatted = formatDate(value);
+            if (formatted) {
+              return formatted;
+            }
+          }
+          if (/^https?:\/\//i.test(value)) {
+            return `<a href="${value}" target="_blank" rel="noopener">Link</a>`;
+          }
+          return value;
+        }
+
+        if (value instanceof Date) {
+          return formatDate(value);
+        }
+
+        if (typeof value === "object") {
+          try {
+            return JSON.stringify(value);
+          } catch (_err) {
+            return String(value);
+          }
+        }
+
+        return String(value);
+      }
+
+      function determineGroupingKey(entries) {
+        for (const key of GROUPING_KEYS) {
+          if (entries.some(entry => entry && entry[key])) {
+            return key;
+          }
+        }
+        const fallbackKeys = entries.length ? Object.keys(entries[0]) : [];
+        return fallbackKeys[0] || null;
+      }
+
+      function determineTimeKey(entries) {
+        for (const key of TIME_KEYS) {
+          if (entries.some(entry => entry && entry[key])) {
+            return key;
+          }
+        }
+        return null;
+      }
+
+      function determineUserKey(entries) {
+        for (const key of USER_KEYS) {
+          if (entries.some(entry => entry && entry[key])) {
+            return key;
+          }
+        }
+        return null;
+      }
+
+      function deriveColumns(entries) {
+        const set = new Set();
+        entries.forEach(entry => {
+          if (!entry || typeof entry !== "object") return;
+          Object.keys(entry).forEach(key => set.add(key));
+        });
+
+        const prioritized = PRIORITY_COLUMNS.filter(key => set.has(key));
+        const remaining = Array.from(set).filter(key => !PRIORITY_COLUMNS.includes(key));
+        remaining.sort((a, b) => a.localeCompare(b, "de"));
+        return [...prioritized, ...remaining];
+      }
+
+      function updateSummary(entries) {
+        totalEntriesEl.textContent = new Intl.NumberFormat("de-DE").format(entries.length);
+
+        const groupingKey = determineGroupingKey(entries);
+        const userKey = determineUserKey(entries);
+        const timeKey = determineTimeKey(entries);
+
+        const exerciseMap = new Map();
+        if (groupingKey) {
+          for (const entry of entries) {
+            if (!entry || typeof entry !== "object") continue;
+            const value = entry[groupingKey];
+            if (!value) continue;
+            const label = typeof value === "string" ? value : JSON.stringify(value);
+            const current = exerciseMap.get(label) || 0;
+            exerciseMap.set(label, current + 1);
+          }
+        }
+
+        if (exerciseMap.size === 0) {
+          uniqueExercisesEl.textContent = "–";
+          exerciseSummaryHint.textContent = "Keine Übungsdaten verfügbar.";
+          topExercisesList.innerHTML = "";
+          exerciseStatus.hidden = false;
+          exerciseStatus.textContent = "Keine Übungen gefunden.";
+          exerciseStatus.dataset.type = "empty";
+        } else {
+          uniqueExercisesEl.textContent = exerciseMap.size;
+          exerciseSummaryHint.textContent = `Erfasste Übungen anhand von \"${groupingKey}\".`;
+
+          const topEntries = Array.from(exerciseMap.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10);
+
+          topExercisesList.innerHTML = topEntries
+            .map(([label, count]) => {
+              const formattedCount = new Intl.NumberFormat("de-DE").format(count);
+              return `<li class="list-item"><strong>${label}</strong><span>${formattedCount}×</span></li>`;
+            })
+            .join("");
+
+          exerciseStatus.hidden = true;
+        }
+
+        if (userKey) {
+          const users = new Set();
+          for (const entry of entries) {
+            if (!entry || typeof entry !== "object") continue;
+            if (entry[userKey]) {
+              users.add(entry[userKey]);
+            }
+          }
+          if (users.size > 0) {
+            exerciseSummaryHint.textContent += ` · ${users.size} Teilnehmende anhand von \"${userKey}\".`;
+          }
+        }
+
+        if (timeKey) {
+          const timestamps = entries
+            .map(entry => entry && entry[timeKey])
+            .filter(Boolean)
+            .map(value => {
+              const date = new Date(value);
+              return Number.isNaN(date.getTime()) ? null : date.getTime();
+            })
+            .filter(value => typeof value === "number");
+
+          if (timestamps.length) {
+            const latest = Math.max(...timestamps);
+            lastUpdateEl.textContent = formatDate(latest);
+          } else {
+            lastUpdateEl.textContent = "–";
+          }
+        } else {
+          lastUpdateEl.textContent = "–";
+        }
+      }
+
+      function updateTable(entries) {
+        const columns = deriveColumns(entries);
+
+        if (!columns.length) {
+          tableHeadRow.innerHTML = "";
+          tableBody.innerHTML = "";
+          tableStatus.textContent = "Keine Daten zum Anzeigen.";
+          tableStatus.dataset.type = "empty";
+          return;
+        }
+
+        tableHeadRow.innerHTML = columns.map(column => `<th scope="col">${column}</th>`).join("");
+
+        tableBody.innerHTML = entries
+          .map(entry => {
+            if (!entry || typeof entry !== "object") {
+              return `<tr><td colspan="${columns.length}">–</td></tr>`;
+            }
+            const cells = columns
+              .map(column => `<td>${formatValue(column, entry[column])}</td>`)
+              .join("");
+            return `<tr>${cells}</tr>`;
+          })
+          .join("");
+
+        columnChips.innerHTML = columns
+          .map(column => `<span class="chip">${column}</span>`)
+          .join("");
+
+        tableStatus.textContent = `${entries.length} Einträge angezeigt.`;
+        delete tableStatus.dataset.type;
+      }
+
+      async function fetchData(signal) {
+        const response = await fetch(API_URL, { signal });
+        if (!response.ok) {
+          throw new Error(`API-Fehler (${response.status})`);
+        }
+        const data = await response.json();
+        if (Array.isArray(data)) {
+          return data;
+        }
+        if (data && Array.isArray(data.items)) {
+          return data.items;
+        }
+        return data ? [data] : [];
+      }
+
+      async function loadData() {
+        refreshBtn.disabled = true;
+        tableStatus.textContent = "Lade Daten...";
+        tableStatus.dataset.type = "info";
+        exerciseStatus.hidden = true;
+
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 20000);
+          const data = await fetchData(controller.signal);
+          clearTimeout(timeout);
+          latestData = data;
+
+          if (!data.length) {
+            updateSummary([]);
+            updateTable([]);
+            exerciseStatus.hidden = false;
+            exerciseStatus.dataset.type = "empty";
+            exerciseStatus.textContent = "Keine Einträge vorhanden.";
+            return;
+          }
+
+          updateSummary(data);
+          updateTable(data);
+        } catch (error) {
+          tableStatus.textContent = error?.message || "Unbekannter Fehler beim Laden.";
+          tableStatus.dataset.type = "error";
+          exerciseStatus.hidden = false;
+          exerciseStatus.dataset.type = "error";
+          exerciseStatus.textContent = "Statistiken konnten nicht geladen werden.";
+          console.error(error);
+        } finally {
+          refreshBtn.disabled = false;
+        }
+      }
+
+      refreshBtn.addEventListener("click", () => {
+        loadData();
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible" && latestData.length) {
+          loadData();
+        }
+      });
+
+      loadData();
+    </script>
+  </body>
+</html>
