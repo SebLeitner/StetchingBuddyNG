@@ -292,6 +292,8 @@
     let currentFetchController = null;
     let remoteFailureNotified = false;
     let audioUnlockPromise = null;
+    let sharedAudioElement = null;
+    let audioUnlocked = false;
 
     const display = document.getElementById("display");
     const startBtn = document.getElementById("startBtn");
@@ -305,6 +307,8 @@
     const debugEntries = [];
     const DEBUG_MAX_ENTRIES = 12;
     const REMOTE_SPEECH_SLOW_THRESHOLD_MS = 1500;
+    const SILENT_AUDIO_SRC =
+      "data:audio/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDFtcDQyaXNvbWF2YzEAAAAIZnJlZQAAAcNtZGF0AAAAAA==";
     const now = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
 
     const speechConfig = window.STRETCH_COACH_CONFIG || {};
@@ -497,9 +501,29 @@
 
       const objectUrl = URL.createObjectURL(blob);
       currentAudioUrl = objectUrl;
-      const audio = new Audio(objectUrl);
-      audio.playsInline = true;
-      audio.preload = "auto";
+      const audio = sharedAudioElement ?? new Audio();
+      if (!sharedAudioElement) {
+        audio.playsInline = true;
+        audio.preload = "auto";
+      } else {
+        try {
+          sharedAudioElement.pause();
+        } catch (_err) {
+          // ignore pause errors
+        }
+      }
+      audio.muted = false;
+      audio.src = objectUrl;
+      try {
+        audio.currentTime = 0;
+      } catch (_err) {
+        // ignore time reset errors
+      }
+      try {
+        audio.load();
+      } catch (_err) {
+        // ignore load errors
+      }
       currentAudio = audio;
       skipBtn.disabled = false;
 
@@ -519,6 +543,26 @@
             currentAudioUrl = null;
           }
           skipBtn.disabled = true;
+          try {
+            audio.pause();
+          } catch (_err) {
+            // ignore pause errors
+          }
+          if (audio === sharedAudioElement) {
+            try {
+              audio.removeAttribute("src");
+              audio.load();
+            } catch (_err) {
+              // ignore cleanup errors
+            }
+          } else {
+            try {
+              audio.src = "";
+              audio.load();
+            } catch (_err) {
+              // ignore cleanup errors
+            }
+          }
         }
 
         function finish() {
@@ -541,13 +585,30 @@
             finish();
           }
         };
-        const onError = () => fail(new Error("Audio playback failed"));
+        const onError = event => {
+          const error = event instanceof Event && audio.error ? audio.error : null;
+          fail(error || new Error("Audio playback failed"));
+        };
 
         audio.addEventListener("ended", onEnded);
         audio.addEventListener("pause", onPause);
         audio.addEventListener("error", onError);
 
-        audio.play().catch(fail);
+        audio.play().catch(err => {
+          if (err && err.name === "NotAllowedError") {
+            audioUnlocked = false;
+            audioUnlockPromise = null;
+            setStatus(
+              "Browser blockiert die Audiowiedergabe. Tippe erneut, um sie zu aktivieren.",
+              "warn"
+            );
+            appendDebug(
+              "Audiowiedergabe durch den Browser blockiert.",
+              describeError(err)
+            );
+          }
+          fail(err);
+        });
       });
     }
 
@@ -616,32 +677,63 @@
       if (audioUnlockPromise) return audioUnlockPromise;
 
       if (typeof Audio === "undefined") {
-        audioUnlockPromise = Promise.resolve();
+        audioUnlocked = true;
+        audioUnlockPromise = Promise.resolve(true);
         return audioUnlockPromise;
       }
 
-      const silentAudio = new Audio(
-        "data:audio/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDFtcDQyaXNvbWF2YzEAAAAIZnJlZQAAAcNtZGF0AAAAAA=="
-      );
-      silentAudio.muted = true;
-      silentAudio.playsInline = true;
+      if (!sharedAudioElement) {
+        sharedAudioElement = new Audio();
+        sharedAudioElement.preload = "auto";
+        sharedAudioElement.playsInline = true;
+      }
 
-      audioUnlockPromise = silentAudio
+      sharedAudioElement.muted = true;
+      sharedAudioElement.src = SILENT_AUDIO_SRC;
+
+      const unlockAttempt = sharedAudioElement
         .play()
+        .then(() => true)
         .catch(err => {
           console.warn("Konnte Audio nicht initialisieren.", err);
+          appendDebug("Browser blockiert Audioausgabe.", describeError(err));
+          return false;
         })
         .finally(() => {
           try {
-            silentAudio.pause();
-            silentAudio.currentTime = 0;
+            sharedAudioElement.pause();
+            sharedAudioElement.currentTime = 0;
+            sharedAudioElement.removeAttribute("src");
+            sharedAudioElement.load();
           } catch (_err) {
             // ignore cleanup errors
           }
+          sharedAudioElement.muted = false;
         });
+
+      audioUnlockPromise = unlockAttempt.then(success => {
+        audioUnlocked = success;
+        if (!success) {
+          audioUnlockPromise = null;
+        }
+        return success;
+      });
 
       return audioUnlockPromise;
     }
+
+    const userActivationEvents = ["pointerdown", "touchstart", "keydown"];
+    userActivationEvents.forEach(eventName => {
+      window.addEventListener(
+        eventName,
+        () => {
+          if (!audioUnlocked) {
+            ensureAudioUnlocked();
+          }
+        },
+        { once: true, capture: true }
+      );
+    });
 
     async function speak(text) {
       if (aborted) return;
@@ -821,7 +913,15 @@
     startBtn.addEventListener("click", async () => {
       exercise = exercises.find(e => e.id === select.value) ?? null;
       if (!exercise) return;
-      await ensureAudioUnlocked();
+      const unlocked = await ensureAudioUnlocked();
+      if (!unlocked) {
+        setStatus(
+          "Audioausgabe wurde vom Browser blockiert. Bitte tippe erneut oder prüfe die Autoplay-Einstellungen.",
+          "warn"
+        );
+        appendDebug("Audio konnte nicht freigeschaltet werden.");
+        return;
+      }
       void doExercise();
     });
 
