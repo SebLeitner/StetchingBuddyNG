@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any, Dict
+from functools import lru_cache
+from typing import Any, Dict, Optional, Set
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -20,16 +21,52 @@ DEFAULT_VOICE = os.environ.get("DEFAULT_VOICE", "Vicki")
 MAX_TEXT_LENGTH = int(os.environ.get("MAX_TEXT_LENGTH", "1500"))
 
 
+@lru_cache(maxsize=256)
+def _supported_engines_for_voice(voice: str) -> Set[str]:
+    """Return the supported engines for the requested voice."""
+    try:
+        response = polly.describe_voices(VoiceId=voice)
+    except (BotoCoreError, ClientError):  # pragma: no cover - AWS client errors
+        LOGGER.warning("DescribeVoices failed for voice %s", voice, exc_info=True)
+        return set()
+
+    voices = response.get("Voices") or []
+    if not voices:
+        LOGGER.warning("DescribeVoices returned no data for voice %s", voice)
+        return set()
+
+    supported_engines = voices[0].get("SupportedEngines") or []
+    return set(supported_engines)
+
+
+def _select_engine(voice: str) -> Optional[str]:
+    """Determine the appropriate Polly engine for the given voice."""
+
+    engines = _supported_engines_for_voice(voice)
+    if not engines or "standard" in engines:
+        return None
+
+    if "neural" in engines:
+        return "neural"
+
+    return None
+
+
 def _synthesize_speech(text: str, language: str, voice: str) -> bytes:
     """Invoke Amazon Polly and return the generated audio as bytes."""
+
+    engine = _select_engine(voice)
+    params = {
+        "Text": text,
+        "OutputFormat": "mp3",
+        "VoiceId": voice,
+        "LanguageCode": language,
+    }
+    if engine:
+        params["Engine"] = engine
+
     try:
-        response = polly.synthesize_speech(
-            Text=text,
-            OutputFormat="mp3",
-            VoiceId=voice,
-            LanguageCode=language,
-            Engine="standard",
-        )
+        response = polly.synthesize_speech(**params)
     except (BotoCoreError, ClientError) as exc:  # pragma: no cover - AWS client errors
         LOGGER.exception("Polly request failed")
         raise HttpError(502, "Fehler bei der Sprachsynthese") from exc
