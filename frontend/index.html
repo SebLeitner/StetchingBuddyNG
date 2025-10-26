@@ -905,11 +905,15 @@
           exerciseFacts.innerHTML = "";
         } else {
           const factItems = [];
-          if (Number.isInteger(ex.sets)) {
-            factItems.push(formatFact("Sätze", ex.sets));
-          }
-          if (Number.isInteger(ex.duration)) {
-            factItems.push(formatFact("Wiederholungen pro Satz", ex.duration));
+          const hasSets = Number.isInteger(ex.sets);
+          const hasDuration = Number.isInteger(ex.duration);
+          if (!(hasSets && hasDuration)) {
+            if (hasSets) {
+              factItems.push(formatFact("Sätze", ex.sets));
+            }
+            if (hasDuration) {
+              factItems.push(formatFact("Wiederholungen pro Satz", ex.duration));
+            }
           }
           if (Number.isFinite(ex.rep_time)) {
             factItems.push(formatFact("Dauer je Wiederholung", ex.rep_time, " Sekunden"));
@@ -1238,7 +1242,8 @@
       const instruction = (ex.instruction || "").trim();
       if (!instruction) return name;
       if (name && instruction.toLowerCase().startsWith(name.toLowerCase())) {
-        return instruction;
+        const trimmedInstruction = instruction.slice(name.length).replace(/^[\s.:,-]+/, "").trim();
+        return trimmedInstruction || instruction;
       }
       return name ? `${name}. ${instruction}` : instruction;
     }
