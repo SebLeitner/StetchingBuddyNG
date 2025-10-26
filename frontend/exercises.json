@@ -65,6 +65,17 @@
     "rest_time": 30,
     "mindfulness": "yes"
   },
+    {
+    "id": "gewicht_halten",
+    "name": "Gewicht (Kurzhantel) halten",
+    "instruction": "Nehme eine Kurzhantel in die Hand und stehe aufrecht. Der Durchlauf beinhaltet insgesamt 6 Wechsel, es wird mit rechts begonnen. In den Pausen bitte die Seite wechseln.",
+    "prep_time": 15,
+    "duration": 1,
+    "rep_time": 30,
+    "sets": 6,
+    "rest_time": 5,
+    "mindfulness": "no"
+  },
   {
     "id": "Test Übung",
     "name": "Test Übung",
