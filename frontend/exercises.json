@@ -18,8 +18,7 @@
     "rep_time": 2,
     "sets": 3,
     "rest_time": 30
-  }
-  ,
+  },
   {
     "id": "fersenschieben",
     "name": "Fersenschieben",
@@ -29,11 +28,11 @@
     "rep_time": 3,
     "sets": 3,
     "rest_time": 30
-  }  ,
+  },
   {
     "id": "kniewippen",
     "name": "Kniewippen",
-    "instruction": "Lege Dich auf den Boden flach, stelle die Knie an. Bewege die Knie, ohne den Oberkörper von der Matte zu lösen. Wir beginnen in der Mitte und dann einmal nach links und einmal nach rechts und zurück in Ausgangsposition. ",
+    "instruction": "Lege Dich auf den Boden flach, stelle die Knie an. Bewege die Knie, ohne den Oberkörper von der Matte zu lösen. Wir beginnen in der Mitte und dann einmal nach links und einmal nach rechts und zurück in Ausgangsposition.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 9,
@@ -59,7 +58,15 @@
     "rep_time": 6,
     "sets": 3,
     "rest_time": 30
+  },
+  {
+    "id": "gewicht_halten",
+    "name": "Gewicht (Kurzhantel) halten",
+    "instruction": "Nehme eine Kurzhantel in die Hand und stehe aufrecht. Der Durchlauf beinhaltet insgesamt 6 Wechsel, es wird mit rechts begonnen. In den Pausen bitte die Seite wechseln.",
+    "prep_time": 15,
+    "duration": 1,
+    "rep_time": 30,
+    "sets": 6,
+    "rest_time": 5
   }
 ]
-
-
