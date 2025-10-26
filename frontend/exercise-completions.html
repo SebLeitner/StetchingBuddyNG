@@ -313,7 +313,38 @@
     </main>
 
     <script>
-      const API_URL = "https://hr9yi4qsmg.execute-api.us-east-1.amazonaws.com/api/exercise-completions";
+      const appConfig = window.STRETCH_COACH_CONFIG || {};
+
+      function stripTrailingSlash(value) {
+        return value.replace(/\/+$/, "");
+      }
+
+      function determineProgressEndpoint(config) {
+        if (config && typeof config.progressApiUrl === "string") {
+          const trimmed = config.progressApiUrl.trim();
+          if (!trimmed) {
+            return "/api/exercise-completions";
+          }
+          const normalized = stripTrailingSlash(trimmed);
+          return normalized || "/api/exercise-completions";
+        }
+        if (config && config.progressApiUrl === null) {
+          return null;
+        }
+        if (config && typeof config.progressApiBaseUrl === "string") {
+          const trimmedBase = config.progressApiBaseUrl.trim();
+          if (!trimmedBase) {
+            return "/api/exercise-completions";
+          }
+          const normalizedBase = stripTrailingSlash(trimmedBase);
+          return normalizedBase
+            ? `${normalizedBase}/api/exercise-completions`
+            : "/api/exercise-completions";
+        }
+        return "/api/exercise-completions";
+      }
+
+      const API_URL = determineProgressEndpoint(appConfig);
       const refreshBtn = document.getElementById("refreshBtn");
       const totalEntriesEl = document.getElementById("totalEntries");
       const uniqueExercisesEl = document.getElementById("uniqueExercises");
@@ -546,7 +577,25 @@
         delete tableStatus.dataset.type;
       }
 
+      function ensureApiConfigured() {
+        if (API_URL) {
+          return true;
+        }
+
+        tableStatus.textContent = "Abruf der Übungsdaten ist deaktiviert.";
+        tableStatus.dataset.type = "error";
+        exerciseStatus.hidden = false;
+        exerciseStatus.dataset.type = "error";
+        exerciseStatus.textContent =
+          "Kein API-Endpunkt für Übungsstatistiken konfiguriert.";
+        refreshBtn.disabled = true;
+        return false;
+      }
+
       async function fetchData(signal) {
+        if (!API_URL) {
+          throw new Error("API-Endpunkt nicht konfiguriert.");
+        }
         const response = await fetch(API_URL, { signal });
         if (!response.ok) {
           throw new Error(`API-Fehler (${response.status})`);
@@ -562,6 +611,10 @@
       }
 
       async function loadData() {
+        if (!ensureApiConfigured()) {
+          return;
+        }
+
         refreshBtn.disabled = true;
         tableStatus.textContent = "Lade Daten...";
         tableStatus.dataset.type = "info";
@@ -607,7 +660,11 @@
         }
       });
 
-      loadData();
+      if (API_URL) {
+        loadData();
+      } else {
+        ensureApiConfigured();
+      }
     </script>
   </body>
 </html>
