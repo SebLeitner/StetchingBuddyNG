@@ -26,6 +26,9 @@ echo "=== 🧘 Stretch Coach App Deployment ==="
 echo "Bucket:       ${S3_BUCKET}"
 echo "Distribution: ${CLOUDFRONT_DISTRIBUTION_ID}"
 echo "Source:       ${SRC_DIR}"
+if [[ -n "${SPEECH_API_ENDPOINT:-}" ]]; then
+  echo "Speech API:   ${SPEECH_API_ENDPOINT}"
+fi
 echo
 
 # -------------------------------------------------

@@ -132,6 +132,29 @@
       }
     }
 
+    #statusMessage {
+      min-height: 0;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      background: rgba(61, 139, 255, 0.08);
+      color: var(--text-secondary);
+      box-shadow: inset 0 0 0 1px rgba(61, 139, 255, 0.15);
+    }
+
+    #statusMessage[data-type="warn"] {
+      background: rgba(243, 156, 18, 0.15);
+      color: #8c5a05;
+      box-shadow: inset 0 0 0 1px rgba(243, 156, 18, 0.3);
+    }
+
+    #statusMessage[data-type="error"] {
+      background: rgba(231, 76, 60, 0.18);
+      color: #a12315;
+      box-shadow: inset 0 0 0 1px rgba(231, 76, 60, 0.35);
+    }
+
     button {
       font-size: 1rem;
       font-weight: 600;
@@ -210,6 +233,8 @@
       <button id="stopBtn" disabled>Abbrechen</button>
     </div>
 
+    <div id="statusMessage" role="status" aria-live="polite" hidden></div>
+
     <footer>
       <span>Bleib flexibel und achtsam ✨</span>
     </footer>
@@ -226,6 +251,11 @@
     let exercise = null;
     let skipRequested = false;
     let aborted = false;
+    const hasBrowserSpeech = "speechSynthesis" in window;
+    let currentAudio = null;
+    let currentAudioUrl = null;
+    let currentFetchController = null;
+    let remoteFailureNotified = false;
 
     const display = document.getElementById("display");
     const startBtn = document.getElementById("startBtn");
@@ -233,6 +263,275 @@
     const stopBtn = document.getElementById("stopBtn");
     const select = document.getElementById("exerciseSelect");
     const instructionBox = document.getElementById("instructionBox");
+    const statusMessage = document.getElementById("statusMessage");
+
+    const speechConfig = window.STRETCH_COACH_CONFIG || {};
+    const preferredVoice = speechConfig.voiceId ? String(speechConfig.voiceId) : null;
+    const SPEECH_API_ENDPOINT = determineSpeechEndpoint(speechConfig);
+
+    function stripTrailingSlash(value) {
+      return value.replace(/\/+$/, "");
+    }
+
+    function determineSpeechEndpoint(config) {
+      if (config && config.speechApiUrl) {
+        const normalized = stripTrailingSlash(String(config.speechApiUrl));
+        return normalized || "/api/speak";
+      }
+      if (config && config.speechApiBaseUrl) {
+        const normalizedBase = stripTrailingSlash(String(config.speechApiBaseUrl));
+        return normalizedBase ? `${normalizedBase}/api/speak` : "/api/speak";
+      }
+      return "/api/speak";
+    }
+
+    function setStatus(message = "", type = "info") {
+      if (!statusMessage) return;
+      if (!message) {
+        statusMessage.textContent = "";
+        statusMessage.hidden = true;
+        statusMessage.removeAttribute("data-type");
+        return;
+      }
+      statusMessage.hidden = false;
+      statusMessage.textContent = message;
+      statusMessage.setAttribute("data-type", type);
+    }
+
+    function updateInstructionPreview() {
+      if (!exercise) {
+        instructionBox.textContent = "";
+        return;
+      }
+      instructionBox.textContent = `${exercise.name}. ${exercise.instruction}`;
+    }
+
+    function base64ToBlob(base64, mimeType = "audio/mpeg") {
+      const binary = atob(base64);
+      const len = binary.length;
+      const bytes = new Uint8Array(len);
+      for (let i = 0; i < len; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: mimeType });
+    }
+
+    function cancelActiveSpeech() {
+      if (currentFetchController) {
+        currentFetchController.abort();
+        currentFetchController = null;
+      }
+      if (currentAudio) {
+        currentAudio.pause();
+      }
+      if (hasBrowserSpeech) {
+        speechSynthesis.cancel();
+      }
+      skipBtn.disabled = true;
+    }
+
+    async function callSpeechApi(text, { signal } = {}) {
+      const payload = { text, language: "de-DE" };
+      if (preferredVoice) {
+        payload.voice = preferredVoice;
+      }
+
+      const response = await fetch(SPEECH_API_ENDPOINT, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal,
+      });
+
+      const contentType = response.headers.get("content-type") || "";
+
+      if (!response.ok) {
+        let errorMessage = `Speech API Fehler (${response.status})`;
+        if (contentType.includes("application/json")) {
+          try {
+            const data = await response.json();
+            if (data && data.error) {
+              errorMessage = data.error;
+            }
+          } catch (_err) {
+            // ignore JSON parsing error
+          }
+        } else {
+          const textMessage = await response.text();
+          if (textMessage) {
+            errorMessage = textMessage;
+          }
+        }
+        throw new Error(errorMessage);
+      }
+
+      if (contentType.includes("application/json")) {
+        const data = await response.json();
+        if (data && data.audioUrl) {
+          const audioResponse = await fetch(data.audioUrl, { signal });
+          if (!audioResponse.ok) {
+            throw new Error(`Konnte Audio-URL nicht laden (${audioResponse.status}).`);
+          }
+          return await audioResponse.blob();
+        }
+        if (data && data.audioBase64) {
+          return base64ToBlob(data.audioBase64, data.mimeType || "audio/mpeg");
+        }
+        if (data && data.error) {
+          throw new Error(data.error);
+        }
+        throw new Error("Unerwartete Antwort der Speech API.");
+      }
+
+      return await response.blob();
+    }
+
+    async function playRemoteAudio(text) {
+      const controller = new AbortController();
+      currentFetchController = controller;
+
+      let blob;
+      try {
+        blob = await callSpeechApi(text, { signal: controller.signal });
+      } catch (error) {
+        const abortedFetch =
+          controller.signal.aborted ||
+          skipRequested ||
+          aborted ||
+          (error && error.name === "AbortError");
+        if (abortedFetch) {
+          skipBtn.disabled = true;
+          return;
+        }
+        throw error;
+      } finally {
+        if (currentFetchController === controller) {
+          currentFetchController = null;
+        }
+      }
+
+      if (aborted || skipRequested) {
+        skipBtn.disabled = true;
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(blob);
+      currentAudioUrl = objectUrl;
+      const audio = new Audio(objectUrl);
+      currentAudio = audio;
+      skipBtn.disabled = false;
+
+      await new Promise((resolve, reject) => {
+        let settled = false;
+
+        function cleanup() {
+          audio.removeEventListener("ended", onEnded);
+          audio.removeEventListener("pause", onPause);
+          audio.removeEventListener("error", onError);
+
+          if (currentAudio === audio) {
+            currentAudio = null;
+          }
+          if (currentAudioUrl === objectUrl) {
+            URL.revokeObjectURL(objectUrl);
+            currentAudioUrl = null;
+          }
+          skipBtn.disabled = true;
+        }
+
+        function finish() {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          resolve();
+        }
+
+        function fail(err) {
+          if (settled) return;
+          settled = true;
+          cleanup();
+          reject(err);
+        }
+
+        const onEnded = () => finish();
+        const onPause = () => {
+          if (!audio.ended) {
+            finish();
+          }
+        };
+        const onError = () => fail(new Error("Audio playback failed"));
+
+        audio.addEventListener("ended", onEnded);
+        audio.addEventListener("pause", onPause);
+        audio.addEventListener("error", onError);
+
+        audio.play().catch(fail);
+      });
+    }
+
+    function speakWithLocalSynthesis(text) {
+      return new Promise(resolve => {
+        if (!hasBrowserSpeech) {
+          setStatus("Sprachsynthese im Browser nicht verfügbar.", "error");
+          resolve();
+          return;
+        }
+
+        skipBtn.disabled = false;
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = "de-DE";
+        utterance.rate = 1;
+
+        const cancelWatcher = setInterval(() => {
+          if (skipRequested || aborted) {
+            speechSynthesis.cancel();
+          }
+        }, 100);
+
+        const cleanup = () => {
+          clearInterval(cancelWatcher);
+          skipBtn.disabled = true;
+        };
+
+        utterance.onend = () => {
+          cleanup();
+          resolve();
+        };
+
+        utterance.onerror = () => {
+          cleanup();
+          resolve();
+        };
+
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utterance);
+      });
+    }
+
+    async function speak(text) {
+      if (aborted) return;
+
+      skipRequested = false;
+
+      try {
+        await playRemoteAudio(text);
+        if (remoteFailureNotified) {
+          setStatus("");
+          remoteFailureNotified = false;
+        }
+      } catch (error) {
+        if (aborted || skipRequested || (error && error.name === "AbortError")) {
+          return;
+        }
+        console.warn("Speech API nicht erreichbar, nutze Fallback.", error);
+        if (!remoteFailureNotified) {
+          setStatus("Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.", "warn");
+          remoteFailureNotified = true;
+        }
+        skipRequested = false;
+        await speakWithLocalSynthesis(text);
+      }
+    }
 
     // --- Übungen laden ---
     fetch("exercises.json")
@@ -244,9 +543,11 @@
         updateInstructionPreview();
         startBtn.disabled = exercises.length === 0;
       })
-      .catch(() => {
+      .catch(err => {
+        console.error("Fehler beim Laden der Übungen", err);
         select.innerHTML = "<option>Fehler beim Laden</option>";
         instructionBox.textContent = "";
+        setStatus("Übungen konnten nicht geladen werden.", "error");
       });
 
     countdownStepSelect.innerHTML = Array.from(
@@ -257,37 +558,6 @@
         return `<option value="${value}"${selected}>${value} ms</option>`;
       }
     ).join("");
-
-    function updateInstructionPreview() {
-      if (!exercise) {
-        instructionBox.textContent = "";
-        return;
-      }
-      instructionBox.textContent = `${exercise.name}. ${exercise.instruction}`;
-    }
-
-    // --- Sprachfunktion ---
-    function speak(text) {
-      return new Promise(resolve => {
-        if (aborted) return resolve();
-        speechSynthesis.cancel();
-        const u = new SpeechSynthesisUtterance(text);
-        u.lang = "de-DE";
-        u.rate = 1;
-        u.onend = () => { clearInterval(check); skipBtn.disabled = true; resolve(); };
-        speechSynthesis.speak(u);
-        skipRequested = false;
-        skipBtn.disabled = false;
-        const check = setInterval(() => {
-          if (skipRequested || aborted) {
-            speechSynthesis.cancel();
-            clearInterval(check);
-            skipBtn.disabled = true;
-            resolve();
-          }
-        }, 100);
-      });
-    }
 
     // --- Countdown ---
     async function countdown(seconds, label = "", finalCue = "") {
@@ -331,6 +601,10 @@
       aborted = false;
       startBtn.disabled = true;
       stopBtn.disabled = false;
+
+      if (!remoteFailureNotified) {
+        setStatus("");
+      }
 
       const instructionText = `${exercise.name}. ${exercise.instruction}`;
       display.textContent = instructionText;
@@ -377,16 +651,31 @@
       if (exercise) doExercise();
     });
 
-    skipBtn.addEventListener("click", () => { skipRequested = true; });
+    skipBtn.addEventListener("click", () => {
+      if (skipBtn.disabled) return;
+      skipRequested = true;
+      if (currentFetchController) {
+        currentFetchController.abort();
+      }
+      if (currentAudio) {
+        currentAudio.pause();
+      } else if (hasBrowserSpeech) {
+        speechSynthesis.cancel();
+      }
+      skipBtn.disabled = true;
+    });
     countdownStepSelect.addEventListener("change", () => {
       countdownStepMs = Number(countdownStepSelect.value);
     });
     stopBtn.addEventListener("click", () => {
       aborted = true;
-      speechSynthesis.cancel();
+      skipRequested = false;
+      cancelActiveSpeech();
       display.textContent = "Abbruch...";
       startBtn.disabled = false;
       stopBtn.disabled = true;
+      remoteFailureNotified = false;
+      setStatus("Training gestoppt.", "info");
     });
 
     if ("serviceWorker" in navigator) {
