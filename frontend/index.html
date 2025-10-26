@@ -343,12 +343,38 @@
       text-align: center;
       font-size: 0.8rem;
       color: var(--text-secondary);
+      display: grid;
+      gap: 0.75rem;
     }
 
     footer span {
       display: inline-flex;
       align-items: center;
       gap: 0.3rem;
+      justify-content: center;
+    }
+
+    .stats-button {
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 12px 22px rgba(61, 139, 255, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .stats-button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .stats-button:active {
+      transform: translateY(0);
+      filter: brightness(0.95);
     }
   </style>
 </head>
@@ -407,12 +433,14 @@
 
     <footer>
       <span>Bleib flexibel und achtsam ✨</span>
+      <button id="viewStatsBtn" type="button" class="stats-button">Statistiken ansehen</button>
     </footer>
   </div>
 
   <script src="./config.production.js"></script>
   <script>
     const countdownStepSelect = document.getElementById("countdownStepSelect");
+    const viewStatsBtn = document.getElementById("viewStatsBtn");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -1578,6 +1606,12 @@
         repProgressContainer.hidden = true;
       }
     });
+
+    if (viewStatsBtn) {
+      viewStatsBtn.addEventListener("click", () => {
+        window.location.href = "./exercise-completions.html";
+      });
+    }
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
