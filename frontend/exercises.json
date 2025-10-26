@@ -64,5 +64,16 @@
     "sets": 3,
     "rest_time": 30,
     "mindfulness": "no"
+  },
+  {
+    "id": "Test Übung",
+    "name": "Test Übung",
+    "instruction": "Keine Erklärung notwendig.",
+    "prep_time": 5,
+    "duration": 2,
+    "rep_time": 2,
+    "sets": 2,
+    "rest_time": 15,
+    "mindfulness": "yes"
   }
 ]
