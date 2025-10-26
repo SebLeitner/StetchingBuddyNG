@@ -1,0 +1,11 @@
+{
+  "name": "Stretch Coach",
+  "short_name": "StretchCoach",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#3d8bff",
+  "lang": "de-DE",
+  "scope": "./",
+  "description": "Geführte Dehnübungen mit Sprachansagen und Countdown."
+}

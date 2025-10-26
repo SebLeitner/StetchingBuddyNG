@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#3d8bff" />
+  <link rel="manifest" href="./manifest.webmanifest" />
   <title>Stretch Coach</title>
   <style>
     :root {
@@ -386,6 +388,14 @@
       startBtn.disabled = false;
       stopBtn.disabled = true;
     });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker
+          .register("./service-worker.js")
+          .catch(err => console.error("Service Worker registration failed", err));
+      });
+    }
   </script>
 </body>
 </html>
