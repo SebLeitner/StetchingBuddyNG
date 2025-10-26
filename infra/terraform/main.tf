@@ -194,6 +194,7 @@ resource "aws_iam_role_policy" "speech_lambda_custom" {
       {
         Effect   = "Allow"
         Action   = [
+          "polly:DescribeVoices",
           "polly:SynthesizeSpeech",
           "polly:StartSpeechSynthesisTask"
         ]
