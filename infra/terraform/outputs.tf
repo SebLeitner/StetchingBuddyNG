@@ -17,3 +17,7 @@ output "speech_api_url" {
 output "speech_lambda_arn" {
   value = aws_lambda_function.speech.arn
 }
+
+output "exercise_completion_api_url" {
+  value = "${trim(aws_apigatewayv2_stage.speech.invoke_url, "/")}/api/exercise-completions"
+}

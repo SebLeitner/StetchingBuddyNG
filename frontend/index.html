@@ -465,6 +465,10 @@
     const speechConfig = window.STRETCH_COACH_CONFIG || {};
     const preferredVoice = speechConfig.voiceId ? String(speechConfig.voiceId) : null;
     const SPEECH_API_ENDPOINT = determineSpeechEndpoint(speechConfig);
+    const PROGRESS_API_ENDPOINT = determineProgressEndpoint(speechConfig);
+    const CLIENT_ID_STORAGE_KEY = "stretchCoachClientId";
+    const COMPLETION_REQUEST_TIMEOUT_MS = 8000;
+    let cachedClientId = null;
 
     function stripTrailingSlash(value) {
       return value.replace(/\/+$/, "");
@@ -480,6 +484,31 @@
         return normalizedBase ? `${normalizedBase}/api/speak` : "/api/speak";
       }
       return "/api/speak";
+    }
+
+    function determineProgressEndpoint(config) {
+      if (config && typeof config.progressApiUrl === "string") {
+        const trimmed = config.progressApiUrl.trim();
+        if (!trimmed) {
+          return "/api/exercise-completions";
+        }
+        const normalized = stripTrailingSlash(trimmed);
+        return normalized || "/api/exercise-completions";
+      }
+      if (config && config.progressApiUrl === null) {
+        return null;
+      }
+      if (config && typeof config.progressApiBaseUrl === "string") {
+        const trimmedBase = config.progressApiBaseUrl.trim();
+        if (!trimmedBase) {
+          return "/api/exercise-completions";
+        }
+        const normalizedBase = stripTrailingSlash(trimmedBase);
+        return normalizedBase
+          ? `${normalizedBase}/api/exercise-completions`
+          : "/api/exercise-completions";
+      }
+      return "/api/exercise-completions";
     }
 
     function setStatus(message = "", type = "info") {
@@ -523,6 +552,59 @@
         }
       }
       return String(error);
+    }
+
+    function safeLocalStorageGetItem(key) {
+      try {
+        return window.localStorage ? window.localStorage.getItem(key) : null;
+      } catch (error) {
+        appendDebug("Konnte localStorage nicht lesen.", describeError(error));
+        return null;
+      }
+    }
+
+    function safeLocalStorageSetItem(key, value) {
+      try {
+        if (window.localStorage) {
+          window.localStorage.setItem(key, value);
+        }
+      } catch (error) {
+        appendDebug("Konnte localStorage nicht schreiben.", describeError(error));
+      }
+    }
+
+    function createClientId() {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+      const randomPart = Math.random().toString(16).slice(2, 10);
+      return `client-${Date.now()}-${randomPart}`;
+    }
+
+    function getOrCreateClientId() {
+      if (cachedClientId) {
+        return cachedClientId;
+      }
+      const existing = safeLocalStorageGetItem(CLIENT_ID_STORAGE_KEY);
+      if (existing && typeof existing === "string" && existing.trim()) {
+        cachedClientId = existing.trim();
+        return cachedClientId;
+      }
+      const newId = createClientId();
+      cachedClientId = newId;
+      safeLocalStorageSetItem(CLIENT_ID_STORAGE_KEY, newId);
+      return cachedClientId;
+    }
+
+    function isoStringFromTimestamp(timestamp) {
+      if (typeof timestamp !== "number" || Number.isNaN(timestamp)) {
+        return null;
+      }
+      try {
+        return new Date(timestamp).toISOString();
+      } catch (_err) {
+        return null;
+      }
     }
 
     function truncateTextForDebug(text, maxLength = 90) {
@@ -1251,6 +1333,123 @@
       }
     }
 
+    async function recordExerciseCompletion({
+      exercise: exerciseToStore,
+      totalSets,
+      completedSets,
+      startedAt,
+      finishedAt,
+      durationMs,
+    }) {
+      if (!exerciseToStore || !exerciseToStore.id) {
+        return;
+      }
+      if (!PROGRESS_API_ENDPOINT) {
+        appendDebug("Fortschritts-API ist nicht konfiguriert.");
+        return;
+      }
+
+      const clientId = getOrCreateClientId();
+      if (!clientId) {
+        appendDebug("Kein Client-Identifier verfügbar – Fortschritt wird nicht gespeichert.");
+        return;
+      }
+
+      const resolvedTotalSets = Number.isInteger(totalSets)
+        ? totalSets
+        : Number.isInteger(exerciseToStore.sets)
+        ? exerciseToStore.sets
+        : 0;
+      const resolvedCompletedSets = Number.isInteger(completedSets)
+        ? completedSets
+        : resolvedTotalSets;
+
+      if (resolvedTotalSets <= 0 || resolvedCompletedSets < resolvedTotalSets) {
+        appendDebug("Übung nicht vollständig abgeschlossen – kein Speichern.");
+        return;
+      }
+
+      const payload = {
+        clientId,
+        exerciseId: String(exerciseToStore.id),
+        totalSets: resolvedTotalSets,
+        setsCompleted: resolvedCompletedSets,
+      };
+
+      if (exerciseToStore.name) {
+        payload.exerciseName = String(exerciseToStore.name);
+      }
+      if (Number.isInteger(exerciseToStore.rep_time) && exerciseToStore.rep_time > 0) {
+        payload.repTime = Math.trunc(exerciseToStore.rep_time);
+      }
+      if (Number.isInteger(exerciseToStore.rest_time) && exerciseToStore.rest_time >= 0) {
+        payload.restTime = Math.trunc(exerciseToStore.rest_time);
+      }
+      if (Number.isInteger(exerciseToStore.prep_time) && exerciseToStore.prep_time >= 0) {
+        payload.prepTime = Math.trunc(exerciseToStore.prep_time);
+      }
+      if (Number.isInteger(durationMs) && durationMs >= 0) {
+        payload.durationMs = durationMs;
+      }
+
+      const startedIso = isoStringFromTimestamp(startedAt);
+      if (startedIso) {
+        payload.startedAt = startedIso;
+      }
+      const finishedIso = isoStringFromTimestamp(finishedAt);
+      if (finishedIso) {
+        payload.finishedAt = finishedIso;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), COMPLETION_REQUEST_TIMEOUT_MS);
+      appendDebug(
+        `Speichere Übungsabschluss für '${payload.exerciseName || payload.exerciseId}'.`,
+        `Sätze: ${resolvedCompletedSets}/${resolvedTotalSets}`
+      );
+
+      try {
+        const response = await fetch(PROGRESS_API_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get("content-type") || "";
+          let errorDetail = `${response.status}`;
+          if (contentType.includes("application/json")) {
+            try {
+              const data = await response.json();
+              if (data && data.error) {
+                errorDetail = `${response.status} ${data.error}`;
+              }
+            } catch (_err) {
+              // ignore JSON parse error
+            }
+          } else {
+            const text = await response.text();
+            if (text) {
+              errorDetail = `${response.status} ${text}`;
+            }
+          }
+          appendDebug("Fortschritt konnte nicht gespeichert werden.", errorDetail);
+          return;
+        }
+
+        appendDebug("Fortschritt erfolgreich gespeichert.");
+      } catch (error) {
+        if (controller.signal.aborted) {
+          appendDebug("Fortschrittsspeicherung abgebrochen (Timeout).");
+        } else {
+          appendDebug("Fehler beim Speichern des Fortschritts.", describeError(error));
+        }
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
     // --- Training ---
     async function doExercise() {
       aborted = false;
@@ -1277,10 +1476,15 @@
         await speak(instructionSpeech);
       }
 
+      const exerciseStartAt = Date.now();
+      let completedSets = 0;
+
       for (let set = 1; set <= exercise.sets && !aborted; set++) {
         const withPrep = (set === 1);
         await runSet(set, withPrep);
         if (aborted) break;
+
+        completedSets += 1;
 
         if (set < exercise.sets) {
           await speak(`Pause ${exercise.rest_time} Sekunden.`);
@@ -1292,9 +1496,19 @@
         }
       }
 
+      const exerciseFinishedAt = Date.now();
+
       if (!aborted) {
         display.textContent = "Fertig! Gut gemacht 🎉";
         await speak("Fertig! Gut gemacht.");
+        await recordExerciseCompletion({
+          exercise,
+          totalSets: exercise.sets,
+          completedSets,
+          startedAt: exerciseStartAt,
+          finishedAt: exerciseFinishedAt,
+          durationMs: Math.max(0, exerciseFinishedAt - exerciseStartAt),
+        });
       } else {
         display.textContent = "Abgebrochen.";
         await speak("Training abgebrochen.");
