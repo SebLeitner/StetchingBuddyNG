@@ -78,6 +78,34 @@
       margin-bottom: 0.4rem;
     }
 
+    .switch-labeled {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.55rem;
+      margin: 0;
+      font-weight: 600;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .switch-labeled .switch-label-text {
+      font-size: 0.9rem;
+    }
+
+    .switch-labeled .switch-state {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-primary);
+      min-width: 2.2rem;
+      text-align: center;
+    }
+
+    .switch-labeled[data-disabled="true"] {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
     .input-group {
       display: grid;
       gap: 0.6rem;
@@ -562,8 +590,39 @@
     }
 
     .exercise-overview {
-      display: grid;
+      display: flex;
       gap: 0.65rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .details-button {
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      background: rgba(61, 139, 255, 0.12);
+      color: var(--accent-strong);
+      transition: transform 0.15s ease, filter 0.2s ease;
+    }
+
+    .details-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .details-button:active:not(:disabled) {
+      transform: translateY(0);
+      filter: brightness(0.95);
+    }
+
+    .details-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+      filter: none;
     }
 
     .exercise-facts {
@@ -617,6 +676,25 @@
 
     .modal-actions > *:first-child {
       margin-right: auto;
+    }
+
+    .start-controls {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .exercise-details-content {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .exercise-details-instruction {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
     }
 
     .session-controls {
@@ -714,7 +792,7 @@
       </header>
       <div class="modal-content">
         <section class="exercise-overview">
-          <ul id="exerciseFacts" class="exercise-facts"></ul>
+          <button id="exerciseDetailsBtn" type="button" class="details-button">Details</button>
         </section>
         <section class="session-stage">
           <div id="display" class="session-display">Bereit?</div>
@@ -725,12 +803,48 @@
         <p id="sessionSummary" class="session-summary" hidden></p>
       </div>
       <div class="modal-actions">
-        <button id="sessionStartBtn" class="primary-button" type="button">Start</button>
+        <div class="start-controls">
+          <button id="sessionStartBtn" class="primary-button" type="button">Start</button>
+          <label for="breakBellToggle" class="switch-labeled" id="breakBellControl">
+            <span class="switch-label-text">Klangschale</span>
+            <div class="switch">
+              <input type="checkbox" id="breakBellToggle" />
+              <span class="switch-track"><span class="switch-thumb"></span></span>
+            </div>
+            <span id="breakBellState" class="switch-state">Aus</span>
+          </label>
+        </div>
         <div id="sessionControls" class="session-controls" hidden>
           <button id="continueBtn" type="button" class="secondary-button" disabled>Weiter</button>
           <button id="pauseBtn" type="button" class="secondary-button" disabled>Pause</button>
           <button id="stopBtn" type="button" class="danger-button">Abbrechen</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="exerciseDetailsModal" hidden>
+    <div
+      class="modal-card"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="exerciseDetailsTitle"
+      aria-describedby="exerciseDetailsInstruction"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="exerciseDetailsTitle">Übungsdetails</h2>
+          <p id="exerciseDetailsSubtitle">Dein persönlicher Stretch Buddy begleitet dich.</p>
+        </div>
+        <button id="closeExerciseDetailsBtn" type="button" class="ghost-button ghost-button--small">
+          Schließen
+        </button>
+      </header>
+      <div class="exercise-details-content">
+        <p id="exerciseDetailsInstruction" class="exercise-details-instruction">
+          Hier erscheinen die Details zur ausgewählten Übung.
+        </p>
+        <ul id="exerciseFacts" class="exercise-facts"></ul>
       </div>
     </div>
   </div>
@@ -762,6 +876,15 @@
     const sessionSummary = document.getElementById("sessionSummary");
     const sessionControls = document.getElementById("sessionControls");
     const exerciseOverviewSection = document.querySelector(".exercise-overview");
+    const exerciseDetailsBtn = document.getElementById("exerciseDetailsBtn");
+    const exerciseDetailsModal = document.getElementById("exerciseDetailsModal");
+    const exerciseDetailsTitle = document.getElementById("exerciseDetailsTitle");
+    const exerciseDetailsSubtitle = document.getElementById("exerciseDetailsSubtitle");
+    const exerciseDetailsInstruction = document.getElementById("exerciseDetailsInstruction");
+    const closeExerciseDetailsBtn = document.getElementById("closeExerciseDetailsBtn");
+    const breakBellToggle = document.getElementById("breakBellToggle");
+    const breakBellState = document.getElementById("breakBellState");
+    const breakBellControl = document.getElementById("breakBellControl");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -977,18 +1100,75 @@
       return `${label}: ${value}${suffix}`;
     }
 
+    function buildExerciseSummary(ex) {
+      if (!ex) {
+        return "Dein persönlicher Stretch Buddy begleitet dich.";
+      }
+      const hasSets = Number.isInteger(ex.sets);
+      const hasDuration = Number.isInteger(ex.duration);
+      if (hasSets && hasDuration) {
+        return `${ex.sets} Sätze · ${ex.duration} Wiederholungen pro Satz`;
+      }
+      if (hasSets) {
+        return `${ex.sets} Sätze`;
+      }
+      if (hasDuration) {
+        return `${ex.duration} Wiederholungen pro Satz`;
+      }
+      return "Dein persönlicher Stretch Buddy begleitet dich.";
+    }
+
+    function refreshBreakBellStateLabel() {
+      if (!breakBellState) return;
+      const isEnabled = !!(breakBellToggle && breakBellToggle.checked);
+      breakBellState.textContent = isEnabled ? "An" : "Aus";
+    }
+
+    function parseBreakBellDefault(ex) {
+      if (!ex || typeof ex.break_bell !== "string") {
+        return false;
+      }
+      return ex.break_bell.trim().toLowerCase() === "yes";
+    }
+
+    function applyBreakBellPreset(ex) {
+      if (!breakBellToggle) return;
+      const shouldEnable = parseBreakBellDefault(ex);
+      breakBellToggle.checked = shouldEnable;
+      refreshBreakBellStateLabel();
+    }
+
+    function isBreakBellEnabled() {
+      return !!(breakBellToggle && breakBellToggle.checked);
+    }
+
     function updateExerciseOverview(ex) {
       if (exerciseModalTitle) {
         exerciseModalTitle.textContent = ex && ex.name ? ex.name : "Übung";
       }
+      if (exerciseDetailsTitle) {
+        exerciseDetailsTitle.textContent = ex && ex.name ? ex.name : "Übungsdetails";
+      }
+      const summaryText = buildExerciseSummary(ex);
       if (exerciseModalSubtitle) {
-        if (ex && Number.isInteger(ex.sets) && Number.isInteger(ex.duration)) {
-          exerciseModalSubtitle.textContent = `${ex.sets} Sätze · ${ex.duration} Wiederholungen pro Satz`;
-        } else if (ex && Number.isInteger(ex.sets)) {
-          exerciseModalSubtitle.textContent = `${ex.sets} Sätze`;
+        exerciseModalSubtitle.textContent = summaryText;
+      }
+      if (exerciseDetailsSubtitle) {
+        exerciseDetailsSubtitle.textContent = summaryText;
+      }
+      if (exerciseDetailsInstruction) {
+        if (ex && ex.instruction) {
+          exerciseDetailsInstruction.textContent = ex.instruction;
         } else {
-          exerciseModalSubtitle.textContent = "Dein persönlicher Stretch Buddy begleitet dich.";
+          exerciseDetailsInstruction.textContent = "Keine Beschreibung vorhanden.";
         }
+      }
+      if (exerciseDetailsBtn) {
+        exerciseDetailsBtn.disabled = !ex;
+      }
+      if (breakBellToggle && typeof ex !== "undefined" && ex !== null) {
+        // Keep current toggle unless exercise changed via preset elsewhere
+        refreshBreakBellStateLabel();
       }
       if (exerciseFacts) {
         if (!ex) {
@@ -1016,6 +1196,53 @@
           }
           exerciseFacts.innerHTML = factItems.map(item => `<li>${item}</li>`).join("");
         }
+      }
+    }
+
+    async function playBreakBellCue() {
+      try {
+        const contextUnlocked = await unlockAudioContext();
+        if (!contextUnlocked) {
+          return;
+        }
+        if (!sharedAudioContext) {
+          const AudioContextCtor = getAudioContextConstructor();
+          if (!AudioContextCtor) {
+            return;
+          }
+          sharedAudioContext = new AudioContextCtor();
+        }
+        const context = sharedAudioContext;
+        if (!context) {
+          return;
+        }
+        if (context.state === "suspended") {
+          await context.resume();
+        }
+        const startTime = context.currentTime + 0.05;
+        const duration = 1.4;
+        const gain = context.createGain();
+        gain.gain.setValueAtTime(0, context.currentTime);
+        gain.gain.linearRampToValueAtTime(0.4, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+        const oscillator = context.createOscillator();
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(660, startTime);
+        oscillator.frequency.exponentialRampToValueAtTime(330, startTime + duration);
+        oscillator.connect(gain);
+        gain.connect(context.destination);
+        oscillator.addEventListener("ended", () => {
+          try {
+            oscillator.disconnect();
+          } catch (_err) {}
+          try {
+            gain.disconnect();
+          } catch (_err) {}
+        });
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration + 0.1);
+      } catch (error) {
+        appendDebug("Klangschale konnte nicht abgespielt werden.", describeError(error));
       }
     }
 
@@ -1424,6 +1651,15 @@
         updateVoiceModeHint();
       });
     });
+
+    if (breakBellToggle) {
+      breakBellToggle.addEventListener("change", () => {
+        refreshBreakBellStateLabel();
+      });
+      refreshBreakBellStateLabel();
+    } else {
+      refreshBreakBellStateLabel();
+    }
 
     if (voiceModeControl && voiceModeHint) {
       const showVoiceModeHint = () => {
@@ -2081,6 +2317,7 @@
         exercises = data;
         select.innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
         exercise = exercises[0] ?? null;
+        applyBreakBellPreset(exercise);
         updateExerciseOverview(exercise);
         resetSessionUI();
         if (openSessionBtn) {
@@ -2358,6 +2595,9 @@
         completedSets += 1;
 
         if (set < exercise.sets) {
+          if (isBreakBellEnabled()) {
+            await playBreakBellCue();
+          }
           await speak(`Pause ${exercise.rest_time} Sekunden.`);
           const restSecondsNumeric = Number(exercise.rest_time);
           const restSeconds = Number.isFinite(restSecondsNumeric) ? restSecondsNumeric : 0;
@@ -2440,6 +2680,7 @@
     select.addEventListener("change", () => {
       const id = select.value;
       exercise = exercises.find(e => e.id === id) ?? null;
+      applyBreakBellPreset(exercise);
       updateExerciseOverview(exercise);
       if (openSessionBtn) {
         openSessionBtn.disabled = !exercise;
@@ -2452,6 +2693,36 @@
         display.textContent = preview || (exercise && exercise.name ? exercise.name : "Bereit?");
       }
     });
+
+    if (exerciseDetailsBtn) {
+      exerciseDetailsBtn.addEventListener("click", () => {
+        exercise = exercises.find(e => e.id === select.value) ?? exercise;
+        if (!exercise) {
+          return;
+        }
+        updateExerciseOverview(exercise);
+        if (exerciseDetailsModal) {
+          openModal(exerciseDetailsModal);
+        }
+      });
+    }
+
+    if (closeExerciseDetailsBtn) {
+      closeExerciseDetailsBtn.addEventListener("click", () => {
+        if (exerciseDetailsModal) {
+          closeModal(exerciseDetailsModal);
+        }
+      });
+    }
+
+    if (exerciseDetailsModal) {
+      closeModal(exerciseDetailsModal);
+      exerciseDetailsModal.addEventListener("click", event => {
+        if (event.target === exerciseDetailsModal) {
+          closeModal(exerciseDetailsModal);
+        }
+      });
+    }
 
     if (openSessionBtn) {
       openSessionBtn.addEventListener("click", () => {

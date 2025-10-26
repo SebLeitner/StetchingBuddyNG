@@ -2,79 +2,86 @@
   {
     "id": "kreuzheben",
     "name": "Kreuzheben",
-    "instruction": "Kreuzheben. Stell dich hüftbreit hin, halte den Rücken gerade und bewege dich aus der Hüfte soweit runter wie möglich, komme anschließend in die Ausgangsposition.",
+    "instruction": "Stell dich hüftbreit hin, Rücken gerade, beuge dich aus der Hüfte und richte dich kontrolliert wieder auf.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 5,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   },
   {
     "id": "katzekuh",
     "name": "Katze und Kuh",
-    "instruction": "Vierfüßlerstand - Einmal Hohlkreuz machen, einmal Katzenbuckel. Übung startet und endet im Hohlkreuz.",
+    "instruction": "Im Vierfüßlerstand abwechselnd ins Hohlkreuz und in den Katzenbuckel wechseln, Start und Ende im Hohlkreuz.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 2,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   },
   {
     "id": "fersenschieben",
     "name": "Fersenschieben",
-    "instruction": "Lege Dich auf den Boden flach und schiebe abwechselnd die Fersen nach vorne - lang machen! Ausgangsposition ist beide Fersen gleiche Höhe!",
+    "instruction": "Lege dich flach hin und schiebe die Fersen abwechselnd nach vorne, beide Fersen starten auf gleicher Höhe.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 3,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   },
   {
     "id": "kniewippen",
     "name": "Kniewippen",
-    "instruction": "Lege Dich auf den Boden flach, stelle die Knie an. Bewege die Knie, ohne den Oberkörper von der Matte zu lösen. Wir beginnen in der Mitte und dann einmal nach links und einmal nach rechts und zurück in Ausgangsposition. ",
+    "instruction": "Lege dich flach hin, Knie anstellen und ohne Oberkörperbewegung die Knie von der Mitte nach links, nach rechts und zurück führen.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 9,
     "sets": 3,
     "rest_time": 30,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   },
   {
     "id": "schraegerbauch_link",
     "name": "Schräger Bauch links",
-    "instruction": "Lege Dich auf den Boden flach. Versuche mit dem linken Arm nach schräg rechts zu greifen und komme zur Ausgangsposition zurück.",
+    "instruction": "Lege dich flach hin und greife mit dem linken Arm schräg nach rechts, dann zurück in die Ausgangsposition.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 6,
     "sets": 2,
     "rest_time": 30,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   },
   {
     "id": "schraegerbauch_rechts",
     "name": "Schräger Bauch rechts",
-    "instruction": "Lege Dich auf den Boden flach. Versuche mit dem rechten Arm nach schräg links zu greifen und komme zur Ausgangsposition zurück.",
+    "instruction": "Lege dich flach hin und greife mit dem rechten Arm schräg nach links, dann zurück in die Ausgangsposition.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 6,
     "sets": 2,
     "rest_time": 30,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   },
-    {
+  {
     "id": "gewicht_halten",
     "name": "Gewicht (Kurzhantel) halten",
-    "instruction": "Nehme eine Kurzhantel in die Hand und stehe aufrecht. Der Durchlauf beinhaltet insgesamt 6 Wechsel, es wird mit rechts begonnen. In den Pausen bitte die Seite wechseln.",
+    "instruction": "Halte eine Kurzhantel im Stand, starte rechts und wechsle in jeder Pause die Seite, insgesamt sechs Wechsel.",
     "prep_time": 15,
     "duration": 1,
     "rep_time": 30,
     "sets": 6,
     "rest_time": 5,
-    "mindfulness": "no"
+    "mindfulness": "no",
+    "break_bell": "no"
   },
   {
     "id": "Test Übung",
@@ -85,6 +92,7 @@
     "rep_time": 2,
     "sets": 2,
     "rest_time": 15,
-    "mindfulness": "yes"
+    "mindfulness": "yes",
+    "break_bell": "no"
   }
 ]
