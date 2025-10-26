@@ -257,6 +257,7 @@
     let currentAudioUrl = null;
     let currentFetchController = null;
     let remoteFailureNotified = false;
+    let audioUnlockPromise = null;
 
     const display = document.getElementById("display");
     const startBtn = document.getElementById("startBtn");
@@ -419,6 +420,8 @@
       const objectUrl = URL.createObjectURL(blob);
       currentAudioUrl = objectUrl;
       const audio = new Audio(objectUrl);
+      audio.playsInline = true;
+      audio.preload = "auto";
       currentAudio = audio;
       skipBtn.disabled = false;
 
@@ -483,30 +486,81 @@
         utterance.lang = "de-DE";
         utterance.rate = 1;
 
+        let finished = false;
         const cancelWatcher = setInterval(() => {
           if (skipRequested || aborted) {
             speechSynthesis.cancel();
           }
         }, 100);
 
+        let guardTimer = null;
+
         const cleanup = () => {
           clearInterval(cancelWatcher);
+          if (guardTimer) {
+            clearTimeout(guardTimer);
+            guardTimer = null;
+          }
           skipBtn.disabled = true;
         };
 
-        utterance.onend = () => {
+        const finish = () => {
+          if (finished) return;
+          finished = true;
           cleanup();
           resolve();
         };
 
-        utterance.onerror = () => {
-          cleanup();
-          resolve();
+        const scheduleGuard = () => {
+          guardTimer = setTimeout(() => {
+            if (speechSynthesis.speaking || speechSynthesis.pending) {
+              scheduleGuard();
+              return;
+            }
+            console.warn("Lokale Sprachsynthese reagiert nicht, fahre ohne Audio fort.");
+            finish();
+          }, 4000);
         };
+
+        utterance.onend = () => finish();
+
+        utterance.onerror = () => finish();
 
         speechSynthesis.cancel();
+        scheduleGuard();
         speechSynthesis.speak(utterance);
       });
+    }
+
+    function ensureAudioUnlocked() {
+      if (audioUnlockPromise) return audioUnlockPromise;
+
+      if (typeof Audio === "undefined") {
+        audioUnlockPromise = Promise.resolve();
+        return audioUnlockPromise;
+      }
+
+      const silentAudio = new Audio(
+        "data:audio/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDFtcDQyaXNvbWF2YzEAAAAIZnJlZQAAAcNtZGF0AAAAAA=="
+      );
+      silentAudio.muted = true;
+      silentAudio.playsInline = true;
+
+      audioUnlockPromise = silentAudio
+        .play()
+        .catch(err => {
+          console.warn("Konnte Audio nicht initialisieren.", err);
+        })
+        .finally(() => {
+          try {
+            silentAudio.pause();
+            silentAudio.currentTime = 0;
+          } catch (_err) {
+            // ignore cleanup errors
+          }
+        });
+
+      return audioUnlockPromise;
     }
 
     async function speak(text) {
@@ -647,9 +701,11 @@
       updateInstructionPreview();
     });
 
-    startBtn.addEventListener("click", () => {
+    startBtn.addEventListener("click", async () => {
       exercise = exercises.find(e => e.id === select.value) ?? null;
-      if (exercise) doExercise();
+      if (!exercise) return;
+      await ensureAudioUnlocked();
+      void doExercise();
     });
 
     skipBtn.addEventListener("click", () => {
