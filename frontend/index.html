@@ -117,12 +117,6 @@
       color: var(--text-primary);
     }
 
-    .group-hint {
-      margin: 0;
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-    }
-
     select {
       width: 100%;
       padding: 0.75rem 1rem;
@@ -420,7 +414,13 @@
     .secondary-actions {
       display: grid;
       gap: 0.75rem;
-      margin-top: 0.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .secondary-actions .ghost-button {
+      justify-content: center;
+      text-decoration: none;
+      width: 100%;
     }
 
     .primary-button {
@@ -525,6 +525,10 @@
       background: transparent;
       color: var(--accent-strong);
       cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
       transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
     }
 
@@ -536,6 +540,11 @@
     .ghost-button--small {
       padding: 0.45rem 0.8rem;
       font-size: 0.85rem;
+    }
+
+    #debugLogBtn {
+      margin-top: 1.5rem;
+      width: 100%;
     }
 
     .modal-backdrop {
@@ -648,8 +657,9 @@
 
     .session-display {
       min-height: 3.2rem;
-      display: grid;
-      place-items: center;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
       padding: 1.3rem;
       font-size: clamp(1.6rem, 4.5vw, 2.4rem);
       font-weight: 600;
@@ -657,7 +667,7 @@
       background: rgba(61, 139, 255, 0.08);
       color: var(--text-primary);
       line-height: 1.3;
-      text-align: center;
+      text-align: left;
     }
 
     .session-summary {
@@ -683,6 +693,10 @@
       align-items: center;
       gap: 1rem;
       flex-wrap: wrap;
+    }
+
+    .start-controls .switch-labeled {
+      margin-left: auto;
     }
 
     .exercise-details-content {
@@ -763,7 +777,6 @@
         <input type="radio" id="voiceModeLocal" name="voiceMode" value="local" />
         <label for="voiceModeLocal" data-icon="🗣️">Nur lokal</label>
       </div>
-      <p class="group-hint" id="voiceModeHint"></p>
     </div>
 
     <div class="main-actions">
@@ -773,6 +786,8 @@
       </div>
       <div class="secondary-actions">
         <button id="viewStatsBtn" type="button" class="stats-button">Statistiken ansehen</button>
+        <a class="ghost-button" href="./manage-exercises.html">Trainings bearbeiten</a>
+        <a class="ghost-button" id="exerciseEditorLink" href="./manage-exercises.html#exerciseEditor">Editor öffnen</a>
       </div>
     </div>
 
@@ -833,7 +848,6 @@
       <header class="modal-header">
         <div>
           <h2 id="exerciseDetailsTitle">Übungsdetails</h2>
-          <p id="exerciseDetailsSubtitle">Dein persönlicher Stretch Buddy begleitet dich.</p>
         </div>
         <button id="closeExerciseDetailsBtn" type="button" class="ghost-button ghost-button--small">
           Schließen
@@ -864,13 +878,13 @@
   <script>
     const countdownStepSelect = document.getElementById("countdownStepSelect");
     const viewStatsBtn = document.getElementById("viewStatsBtn");
+    const exerciseEditorLink = document.getElementById("exerciseEditorLink");
     const openSessionBtn = document.getElementById("openSessionBtn");
     const beatsRadioBtn = document.getElementById("beatsRadioBtn");
     const debugLogBtn = document.getElementById("debugLogBtn");
     const exerciseModal = document.getElementById("exerciseModal");
     const sessionCloseBtn = document.getElementById("sessionCloseBtn");
     const exerciseModalTitle = document.getElementById("exerciseModalTitle");
-    const exerciseModalSubtitle = document.getElementById("exerciseModalSubtitle");
     const exerciseFacts = document.getElementById("exerciseFacts");
     const sessionSummary = document.getElementById("sessionSummary");
     const sessionControls = document.getElementById("sessionControls");
@@ -878,12 +892,10 @@
     const exerciseDetailsBtn = document.getElementById("exerciseDetailsBtn");
     const exerciseDetailsModal = document.getElementById("exerciseDetailsModal");
     const exerciseDetailsTitle = document.getElementById("exerciseDetailsTitle");
-    const exerciseDetailsSubtitle = document.getElementById("exerciseDetailsSubtitle");
     const exerciseDetailsInstruction = document.getElementById("exerciseDetailsInstruction");
     const closeExerciseDetailsBtn = document.getElementById("closeExerciseDetailsBtn");
     const breakBellToggle = document.getElementById("breakBellToggle");
     const breakBellState = document.getElementById("breakBellState");
-    const breakBellControl = document.getElementById("breakBellControl");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -927,8 +939,6 @@
     const select = document.getElementById("exerciseSelect");
     const statusMessage = document.getElementById("statusMessage");
     const voiceModeRadios = Array.from(document.querySelectorAll('input[name="voiceMode"]'));
-    const voiceModeHint = document.getElementById("voiceModeHint");
-    const voiceModeControl = document.querySelector(".segmented-control");
     const debugPanel = document.getElementById("debugPanel");
     const debugLog = document.getElementById("debugLog");
     const debugEntries = [];
@@ -950,6 +960,20 @@
     const CLIENT_ID_STORAGE_KEY = "stretchCoachClientId";
     const COMPLETION_REQUEST_TIMEOUT_MS = 8000;
     let cachedClientId = null;
+
+    if (exerciseEditorLink) {
+      const editorUrlFromConfig =
+        speechConfig && typeof speechConfig.exerciseEditorUrl === "string"
+          ? speechConfig.exerciseEditorUrl.trim()
+          : "";
+      if (editorUrlFromConfig) {
+        exerciseEditorLink.href = editorUrlFromConfig;
+        if (/^https?:/i.test(editorUrlFromConfig)) {
+          exerciseEditorLink.target = "_blank";
+          exerciseEditorLink.rel = "noopener noreferrer";
+        }
+      }
+    }
 
     function stripTrailingSlash(value) {
       return value.replace(/\/+$/, "");
@@ -1099,24 +1123,6 @@
       return `${label}: ${value}${suffix}`;
     }
 
-    function buildExerciseSummary(ex) {
-      if (!ex) {
-        return "Dein persönlicher Stretch Buddy begleitet dich.";
-      }
-      const hasSets = Number.isInteger(ex.sets);
-      const hasDuration = Number.isInteger(ex.duration);
-      if (hasSets && hasDuration) {
-        return `${ex.sets} Sätze · ${ex.duration} Wiederholungen pro Satz`;
-      }
-      if (hasSets) {
-        return `${ex.sets} Sätze`;
-      }
-      if (hasDuration) {
-        return `${ex.duration} Wiederholungen pro Satz`;
-      }
-      return "Dein persönlicher Stretch Buddy begleitet dich.";
-    }
-
     function refreshBreakBellStateLabel() {
       if (!breakBellState) return;
       const isEnabled = !!(breakBellToggle && breakBellToggle.checked);
@@ -1148,16 +1154,22 @@
       if (exerciseDetailsTitle) {
         exerciseDetailsTitle.textContent = ex && ex.name ? ex.name : "Übungsdetails";
       }
-      const summaryText = buildExerciseSummary(ex);
-      if (exerciseModalSubtitle) {
-        exerciseModalSubtitle.textContent = summaryText;
-      }
-      if (exerciseDetailsSubtitle) {
-        exerciseDetailsSubtitle.textContent = summaryText;
-      }
       if (exerciseDetailsInstruction) {
         if (ex && ex.instruction) {
-          exerciseDetailsInstruction.textContent = ex.instruction;
+          const instructionText = String(ex.instruction).trim();
+          const exerciseName = ex.name ? String(ex.name).trim() : "";
+          if (
+            exerciseName &&
+            instructionText.toLowerCase().startsWith(exerciseName.toLowerCase())
+          ) {
+            const withoutName = instructionText
+              .slice(exerciseName.length)
+              .replace(/^[\s.:,-]+/, "")
+              .trim();
+            exerciseDetailsInstruction.textContent = withoutName || instructionText;
+          } else {
+            exerciseDetailsInstruction.textContent = instructionText;
+          }
         } else {
           exerciseDetailsInstruction.textContent = "Keine Beschreibung vorhanden.";
         }
@@ -1594,20 +1606,6 @@
       return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
     }
 
-    function updateVoiceModeHint() {
-      if (!voiceModeHint) return;
-      const message =
-        voiceMode === "auto"
-          ? "Nutze bevorzugt die Online-Stimme. Bei Ausfällen springt die lokale Stimme ein."
-          : "Die Browser-Stimme übernimmt alle Ansagen – funktioniert auch offline.";
-      voiceModeHint.dataset.message = message;
-      if (voiceModeHint.dataset.active === "true") {
-        voiceModeHint.textContent = message;
-      } else {
-        voiceModeHint.textContent = "";
-      }
-    }
-
     function buildInstructionSpeech(ex) {
       if (!ex) return "";
       const name = (ex.name || "").trim();
@@ -1625,11 +1623,6 @@
       voiceMode = initialVoiceMode;
     }
 
-    if (voiceModeHint) {
-      voiceModeHint.dataset.active = "false";
-    }
-
-    updateVoiceModeHint();
     voiceModeRadios.forEach(radio => {
       radio.addEventListener("change", () => {
         if (!radio.checked) return;
@@ -1647,7 +1640,6 @@
             ? "Sprachausgabe: Online-Modus mit Fallback aktiviert."
             : "Sprachausgabe: Lokaler Modus aktiviert."
         );
-        updateVoiceModeHint();
       });
     });
 
@@ -1658,25 +1650,6 @@
       refreshBreakBellStateLabel();
     } else {
       refreshBreakBellStateLabel();
-    }
-
-    if (voiceModeControl && voiceModeHint) {
-      const showVoiceModeHint = () => {
-        voiceModeHint.dataset.active = "true";
-        voiceModeHint.textContent = voiceModeHint.dataset.message || "";
-      };
-      const hideVoiceModeHint = () => {
-        voiceModeHint.dataset.active = "false";
-        voiceModeHint.textContent = "";
-      };
-      voiceModeControl.addEventListener("mouseenter", showVoiceModeHint);
-      voiceModeControl.addEventListener("mouseleave", hideVoiceModeHint);
-      voiceModeControl.addEventListener("focusin", showVoiceModeHint);
-      voiceModeControl.addEventListener("focusout", event => {
-        if (!voiceModeControl.contains(event.relatedTarget)) {
-          hideVoiceModeHint();
-        }
-      });
     }
 
     function base64ToBlob(base64, mimeType = "audio/mpeg") {

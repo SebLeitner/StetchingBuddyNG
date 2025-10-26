@@ -43,6 +43,31 @@
         gap: clamp(1.5rem, 3vw, 2.5rem);
       }
 
+      .page-nav {
+        display: flex;
+        justify-content: flex-start;
+      }
+
+      .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.6rem 1rem;
+        border-radius: 999px;
+        border: 1px solid rgba(61, 139, 255, 0.25);
+        background: rgba(61, 139, 255, 0.12);
+        color: var(--accent-strong);
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+
+      .back-link:hover,
+      .back-link:focus-visible {
+        background: rgba(61, 139, 255, 0.22);
+        transform: translateY(-1px);
+      }
+
       .card {
         background: var(--surface);
         border-radius: var(--radius-large);
@@ -320,6 +345,9 @@
   </head>
   <body>
     <main>
+      <nav class="page-nav">
+        <a class="back-link" href="./index.html" aria-label="Zurück zur Startseite">← Zurück</a>
+      </nav>
       <header class="card">
         <h1>📈 Trainingsfortschritt</h1>
         <p>Hier findest du alle aufgezeichneten Stretching-Einheiten und hilfreiche Statistiken.</p>
