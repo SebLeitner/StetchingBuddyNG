@@ -31,5 +31,6 @@ echo "  AWS_REGION=${AWS_REGION}"
 echo "  S3_BUCKET=${S3_BUCKET}"
 echo "  CLOUDFRONT_DISTRIBUTION_ID=${CLOUDFRONT_DISTRIBUTION_ID}"
 echo "  SOURCE_DIR=${SOURCE_DIR:-frontend}"
+echo "  SPEECH_API_ENDPOINT=${SPEECH_API_ENDPOINT:-}" 
 echo
 echo "💡 Tipp: Du kannst nun einfach 'bash frontend/deploy.sh' ausführen."

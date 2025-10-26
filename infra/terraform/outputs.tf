@@ -9,3 +9,11 @@ output "cloudfront_domain" {
 output "app_url" {
   value = "https://sbuddy.leitnersoft.com"
 }
+
+output "speech_api_url" {
+  value = aws_apigatewayv2_stage.speech.invoke_url
+}
+
+output "speech_lambda_arn" {
+  value = aws_lambda_function.speech.arn
+}
