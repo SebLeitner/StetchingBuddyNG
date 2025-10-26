@@ -3,7 +3,7 @@ name: Deploy Stretch Coach
 on:
   push:
     branches:
-      - main
+      - ResultsDatabase
   workflow_dispatch:
 
 jobs:
