@@ -72,12 +72,40 @@
       .summary-grid {
         display: grid;
         gap: 1rem;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
       }
 
-      @media (min-width: 720px) {
-        .summary-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-        }
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0 0;
+      }
+
+      .metrics-grid--compact {
+        margin-top: 0.75rem;
+      }
+
+      .metric-tile {
+        background: var(--surface-strong);
+        border-radius: 16px;
+        padding: 0.9rem 1rem;
+        border: 1px solid rgba(61, 139, 255, 0.15);
+        box-shadow: 0 10px 18px rgba(26, 42, 58, 0.1);
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .metric-label {
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-secondary);
+      }
+
+      .metric-value {
+        font-weight: 600;
+        font-size: 1.4rem;
       }
 
       .summary-tile {
@@ -114,6 +142,13 @@
         font-weight: 600;
       }
 
+      .section-subtitle {
+        margin: 1.6rem 0 0.6rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
       .list {
         list-style: none;
         margin: 0;
@@ -139,6 +174,35 @@
       .table-card {
         overflow: hidden;
         padding: 0;
+      }
+
+      .chart-card {
+        padding-bottom: 1.4rem;
+      }
+
+      .chart-header {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+        margin-bottom: 1rem;
+      }
+
+      .chart-hint {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.85rem;
+      }
+
+      .chart-container {
+        width: 100%;
+        position: relative;
+        min-height: 240px;
+      }
+
+      #weeklyChart {
+        width: 100%;
+        height: 260px;
+        display: block;
       }
 
       .table-header {
@@ -264,21 +328,64 @@
       <section class="card">
         <div class="summary-grid">
           <div class="summary-tile">
-            <span class="summary-label">Einträge gesamt</span>
-            <span class="summary-value" id="totalEntries">–</span>
-            <p class="summary-hint">Anzahl aller aufgezeichneten Sessions.</p>
+            <span class="summary-label">Übungen gesamt</span>
+            <span class="summary-value" id="totalExercises">–</span>
+            <p class="summary-hint">Abgeschlossene Einheiten ohne Testeinträge.</p>
           </div>
           <div class="summary-tile">
-            <span class="summary-label">Übungen</span>
+            <span class="summary-label">Einzigartige Übungen</span>
             <span class="summary-value" id="uniqueExercises">–</span>
             <p class="summary-hint" id="exerciseSummaryHint">Keine Übungsdaten verfügbar.</p>
           </div>
-          <div class="summary-tile">
-            <span class="summary-label">Zuletzt aktualisiert</span>
-            <span class="summary-value" id="lastUpdate">–</span>
-            <p class="summary-hint">Letzte erfasste Einheit.</p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="section-title">Aktivitätsstatistiken</h2>
+        <div class="metrics-grid" aria-label="Übungsanzahl">
+          <div class="metric-tile">
+            <span class="metric-label">Heute</span>
+            <span class="metric-value" id="exercisesToday">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Diese Woche</span>
+            <span class="metric-value" id="exercisesWeek">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Diesen Monat</span>
+            <span class="metric-value" id="exercisesMonth">–</span>
           </div>
         </div>
+        <h3 class="section-subtitle">Trainingsdauer</h3>
+        <div class="metrics-grid metrics-grid--compact" aria-label="Trainingsdauer">
+          <div class="metric-tile">
+            <span class="metric-label">Heute</span>
+            <span class="metric-value" id="durationToday">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Diese Woche</span>
+            <span class="metric-value" id="durationWeek">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Diesen Monat</span>
+            <span class="metric-value" id="durationMonth">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Gesamt</span>
+            <span class="metric-value" id="durationTotal">–</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card chart-card">
+        <div class="chart-header">
+          <h2 class="section-title">Wochenübersicht</h2>
+          <p class="chart-hint">Übungsanzahl der letzten 12 Wochen.</p>
+        </div>
+        <div class="chart-container">
+          <canvas id="weeklyChart" role="img" aria-label="Übungsanzahl der letzten zwölf Wochen"></canvas>
+        </div>
+        <p class="status" id="chartStatus" hidden></p>
       </section>
 
       <section class="card">
@@ -347,19 +454,36 @@
 
       const API_URL = determineProgressEndpoint(appConfig);
       const refreshBtn = document.getElementById("refreshBtn");
-      const totalEntriesEl = document.getElementById("totalEntries");
+      const totalExercisesEl = document.getElementById("totalExercises");
       const uniqueExercisesEl = document.getElementById("uniqueExercises");
-      const lastUpdateEl = document.getElementById("lastUpdate");
       const topExercisesList = document.getElementById("topExercises");
       const exerciseSummaryHint = document.getElementById("exerciseSummaryHint");
       const exerciseStatus = document.getElementById("exerciseStatus");
+      const exercisesTodayEl = document.getElementById("exercisesToday");
+      const exercisesWeekEl = document.getElementById("exercisesWeek");
+      const exercisesMonthEl = document.getElementById("exercisesMonth");
+      const durationTodayEl = document.getElementById("durationToday");
+      const durationWeekEl = document.getElementById("durationWeek");
+      const durationMonthEl = document.getElementById("durationMonth");
+      const durationTotalEl = document.getElementById("durationTotal");
       const columnChips = document.getElementById("columnChips");
       const tableHeadRow = document.getElementById("tableHeadRow");
       const tableBody = document.getElementById("tableBody");
       const tableStatus = document.getElementById("tableStatus");
+      const weeklyChartCanvas = document.getElementById("weeklyChart");
+      const chartStatus = document.getElementById("chartStatus");
 
-      const GROUPING_KEYS = ["exerciseName", "exercise", "name", "title", "exerciseId"];
-      const TIME_KEYS = ["completedAt", "timestamp", "createdAt", "updatedAt", "time", "date"];
+      const TIME_KEYS = [
+        "completedAt",
+        "completed_at",
+        "finishedAt",
+        "finished_at",
+        "timestamp",
+        "createdAt",
+        "updatedAt",
+        "time",
+        "date",
+      ];
       const USER_KEYS = ["clientId", "userId", "participantId", "profileId"];
       const PRIORITY_COLUMNS = [
         "completedAt",
@@ -372,6 +496,13 @@
       ];
 
       let latestData = [];
+      let currentWeeklyBuckets = [];
+
+      const numberFormatter = new Intl.NumberFormat("de-DE");
+      const shortDateFormatter = new Intl.DateTimeFormat("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+      });
 
       function formatDate(value) {
         const date = new Date(value);
@@ -426,23 +557,413 @@
         return String(value);
       }
 
-      function determineGroupingKey(entries) {
-        for (const key of GROUPING_KEYS) {
-          if (entries.some(entry => entry && entry[key])) {
-            return key;
-          }
-        }
-        const fallbackKeys = entries.length ? Object.keys(entries[0]) : [];
-        return fallbackKeys[0] || null;
+      const EXERCISE_ID_KEYS = ["exerciseId", "exercise_id", "exercise"];
+      const EXERCISE_NAME_KEYS = [
+        "exerciseName",
+        "exercise_name",
+        "name",
+        "title",
+      ];
+      const DURATION_KEYS = [
+        "durationMs",
+        "duration_ms",
+        "durationMilliseconds",
+        "duration_milliseconds",
+        "duration",
+      ];
+
+      function formatNumber(value) {
+        return numberFormatter.format(value);
       }
 
-      function determineTimeKey(entries) {
-        for (const key of TIME_KEYS) {
-          if (entries.some(entry => entry && entry[key])) {
-            return key;
+      function getFirstNonEmptyString(entry, keys) {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        for (const key of keys) {
+          const value = entry[key];
+          if (value === null || value === undefined) {
+            continue;
+          }
+          if (typeof value === "string") {
+            const trimmed = value.trim();
+            if (trimmed) {
+              return trimmed;
+            }
+          } else if (typeof value === "number") {
+            return String(value);
           }
         }
         return null;
+      }
+
+      function getExerciseId(entry) {
+        const id = getFirstNonEmptyString(entry, EXERCISE_ID_KEYS);
+        if (id) {
+          return id;
+        }
+        const possible = entry?.exercise_id;
+        if (possible !== undefined && possible !== null) {
+          return String(possible);
+        }
+        return null;
+      }
+
+      function getExerciseName(entry) {
+        const name = getFirstNonEmptyString(entry, EXERCISE_NAME_KEYS);
+        if (name) {
+          return name;
+        }
+        const id = getExerciseId(entry);
+        if (id) {
+          return id;
+        }
+        return "Unbekannte Übung";
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function isTestExercise(entry) {
+        const id = getExerciseId(entry);
+        if (!id) {
+          return false;
+        }
+        const normalized = id.trim().toLowerCase();
+        return normalized === "test" || normalized === "test übung" || normalized === "testübung";
+      }
+
+      function parseDateValue(value) {
+        if (!value && value !== 0) {
+          return null;
+        }
+        if (value instanceof Date) {
+          return Number.isNaN(value.getTime()) ? null : value;
+        }
+        if (typeof value === "number") {
+          const date = new Date(value);
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+        if (typeof value === "string") {
+          const trimmed = value.trim();
+          if (!trimmed) {
+            return null;
+          }
+          const date = new Date(trimmed);
+          return Number.isNaN(date.getTime()) ? null : date;
+        }
+        return null;
+      }
+
+      function getCompletionDate(entry) {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        for (const key of TIME_KEYS) {
+          if (entry[key]) {
+            const parsed = parseDateValue(entry[key]);
+            if (parsed) {
+              return parsed;
+            }
+          }
+        }
+        if (entry.completed_at) {
+          return parseDateValue(entry.completed_at);
+        }
+        if (entry.finished_at) {
+          return parseDateValue(entry.finished_at);
+        }
+        return null;
+      }
+
+      function getStartOfDay(date) {
+        const result = new Date(date);
+        result.setHours(0, 0, 0, 0);
+        return result;
+      }
+
+      function getStartOfWeek(date) {
+        const result = getStartOfDay(date);
+        const day = (result.getDay() + 6) % 7; // Montag als Wochenbeginn
+        result.setDate(result.getDate() - day);
+        return result;
+      }
+
+      function getStartOfMonth(date) {
+        const result = getStartOfDay(date);
+        result.setDate(1);
+        return result;
+      }
+
+      function getIsoWeekInfo(date) {
+        const temp = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const day = temp.getUTCDay() || 7;
+        temp.setUTCDate(temp.getUTCDate() + 4 - day);
+        const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1));
+        const weekNumber = Math.ceil(((temp - yearStart) / 86400000 + 1) / 7);
+        return { week: weekNumber, year: temp.getUTCFullYear() };
+      }
+
+      function getDurationSeconds(entry) {
+        if (!entry || typeof entry !== "object") {
+          return 0;
+        }
+        for (const key of DURATION_KEYS) {
+          if (!(key in entry)) {
+            continue;
+          }
+          const value = entry[key];
+          if (value === null || value === undefined) {
+            continue;
+          }
+          if (typeof value === "number" && Number.isFinite(value)) {
+            return key.toLowerCase().includes("ms") ? value / 1000 : value;
+          }
+          if (typeof value === "string") {
+            const normalized = value.trim();
+            if (!normalized) {
+              continue;
+            }
+            const parsed = Number(normalized);
+            if (Number.isFinite(parsed)) {
+              return key.toLowerCase().includes("ms") ? parsed / 1000 : parsed;
+            }
+          }
+        }
+        return 0;
+      }
+
+      function formatDuration(totalSeconds) {
+        const seconds = Math.max(0, Math.round(totalSeconds));
+        if (!seconds) {
+          return "0s";
+        }
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        const remainingSeconds = seconds % 60;
+        const parts = [];
+        if (hours) {
+          parts.push(`${hours}h`);
+        }
+        if (minutes) {
+          parts.push(`${minutes}m`);
+        }
+        if (!hours && (!minutes || hours === 0) && remainingSeconds) {
+          parts.push(`${remainingSeconds}s`);
+        } else if (!parts.length && remainingSeconds) {
+          parts.push(`${remainingSeconds}s`);
+        }
+        return parts.join(" ") || "0s";
+      }
+
+      function buildWeeklyBuckets(entries) {
+        const now = new Date();
+        const currentWeekStart = getStartOfWeek(now);
+        const buckets = [];
+        for (let i = 11; i >= 0; i -= 1) {
+          const start = new Date(currentWeekStart);
+          start.setDate(start.getDate() - i * 7);
+          const end = new Date(start);
+          end.setDate(end.getDate() + 7);
+          const { week, year } = getIsoWeekInfo(start);
+          const weekLabel = `KW ${String(week).padStart(2, "0")}`;
+          buckets.push({
+            start,
+            end,
+            label: `${weekLabel}\n${shortDateFormatter.format(start)}`,
+            count: 0,
+          });
+        }
+
+        for (const entry of entries) {
+          const completedAt = getCompletionDate(entry);
+          if (!completedAt) {
+            continue;
+          }
+          for (const bucket of buckets) {
+            if (completedAt >= bucket.start && completedAt < bucket.end) {
+              bucket.count += 1;
+              break;
+            }
+          }
+        }
+
+        return buckets;
+      }
+
+      function renderWeeklyChart(buckets) {
+        if (!weeklyChartCanvas) {
+          return;
+        }
+        const ctx = weeklyChartCanvas.getContext("2d");
+        if (!ctx) {
+          return;
+        }
+
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const cssWidth =
+          weeklyChartCanvas.clientWidth || weeklyChartCanvas.offsetWidth || 600;
+        const cssHeight = weeklyChartCanvas.clientHeight || 260;
+        const width = cssWidth * devicePixelRatio;
+        const height = cssHeight * devicePixelRatio;
+        weeklyChartCanvas.width = Math.max(1, Math.floor(width));
+        weeklyChartCanvas.height = Math.max(1, Math.floor(height));
+        ctx.save();
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+
+        const chartWidth = cssWidth;
+        const chartHeight = cssHeight;
+        const padding = { top: 20, right: 24, bottom: 48, left: 40 };
+        const innerWidth = chartWidth - padding.left - padding.right;
+        const innerHeight = chartHeight - padding.top - padding.bottom;
+        const counts = buckets.map(bucket => bucket.count);
+        const maxValue = Math.max(...counts, 0);
+        const safeMax = maxValue === 0 ? 1 : maxValue;
+
+        ctx.clearRect(0, 0, chartWidth, chartHeight);
+        ctx.font = "12px 'Inter', 'Segoe UI', system-ui";
+        ctx.fillStyle = "rgba(26, 42, 58, 0.6)";
+        ctx.strokeStyle = "rgba(61, 139, 255, 0.3)";
+        ctx.lineWidth = 1;
+
+        const gridLines = 4;
+        const stepValue = safeMax / gridLines;
+        for (let i = 0; i <= gridLines; i += 1) {
+          const ratio = i / gridLines;
+          const y = padding.top + innerHeight - ratio * innerHeight;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(padding.left + innerWidth, y);
+          ctx.stroke();
+          const rawValue = stepValue * i;
+          const value = i === gridLines ? safeMax : Math.round(rawValue);
+          ctx.fillText(formatNumber(value), 4, y + 4);
+        }
+
+        if (buckets.length > 1) {
+          ctx.strokeStyle = "rgba(61, 139, 255, 0.8)";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          buckets.forEach((bucket, index) => {
+            const x =
+              padding.left + (innerWidth * index) / (buckets.length - 1);
+            const y =
+              padding.top + innerHeight - (bucket.count / safeMax) * innerHeight;
+            if (index === 0) {
+              ctx.moveTo(x, y);
+            } else {
+              ctx.lineTo(x, y);
+            }
+          });
+          ctx.stroke();
+
+          ctx.fillStyle = "rgba(61, 139, 255, 0.9)";
+          buckets.forEach((bucket, index) => {
+            const x =
+              padding.left + (innerWidth * index) / (buckets.length - 1);
+            const y =
+              padding.top + innerHeight - (bucket.count / safeMax) * innerHeight;
+            ctx.beginPath();
+            ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+            ctx.fill();
+          });
+        }
+
+        ctx.fillStyle = "rgba(26, 42, 58, 0.7)";
+        buckets.forEach((bucket, index) => {
+          const x =
+            padding.left + (innerWidth * index) / (buckets.length - 1);
+          const lines = bucket.label.split("\n");
+          lines.forEach((line, lineIndex) => {
+            ctx.fillText(
+              line,
+              Math.max(4, Math.min(chartWidth - 40, x - 20)),
+              chartHeight - padding.bottom + 18 + lineIndex * 14,
+            );
+          });
+        });
+
+        ctx.restore();
+      }
+
+      function updateWeeklyChart(entries) {
+        if (!weeklyChartCanvas) {
+          return;
+        }
+        currentWeeklyBuckets = buildWeeklyBuckets(entries);
+        const hasData = currentWeeklyBuckets.some(bucket => bucket.count > 0);
+        if (!hasData) {
+          chartStatus.hidden = false;
+          chartStatus.dataset.type = "empty";
+          chartStatus.textContent = "Keine Übungsabschlüsse in den letzten Wochen.";
+        } else {
+          chartStatus.hidden = true;
+          delete chartStatus.dataset.type;
+        }
+        renderWeeklyChart(currentWeeklyBuckets);
+      }
+
+      function updateActivityStats(entries) {
+        const today = getStartOfDay(new Date());
+        const weekStart = getStartOfWeek(new Date());
+        const monthStart = getStartOfMonth(new Date());
+
+        const stats = {
+          today: { count: 0, duration: 0 },
+          week: { count: 0, duration: 0 },
+          month: { count: 0, duration: 0 },
+          totalDuration: 0,
+        };
+
+        for (const entry of entries) {
+          const finishedAt = getCompletionDate(entry);
+          const durationSeconds = getDurationSeconds(entry);
+
+          if (durationSeconds > 0) {
+            stats.totalDuration += durationSeconds;
+          }
+
+          if (!finishedAt) {
+            continue;
+          }
+
+          if (finishedAt >= today) {
+            stats.today.count += 1;
+            if (durationSeconds > 0) {
+              stats.today.duration += durationSeconds;
+            }
+          }
+
+          if (finishedAt >= weekStart) {
+            stats.week.count += 1;
+            if (durationSeconds > 0) {
+              stats.week.duration += durationSeconds;
+            }
+          }
+
+          if (finishedAt >= monthStart) {
+            stats.month.count += 1;
+            if (durationSeconds > 0) {
+              stats.month.duration += durationSeconds;
+            }
+          }
+
+        }
+
+        exercisesTodayEl.textContent = formatNumber(stats.today.count);
+        exercisesWeekEl.textContent = formatNumber(stats.week.count);
+        exercisesMonthEl.textContent = formatNumber(stats.month.count);
+
+        durationTodayEl.textContent = formatDuration(stats.today.duration);
+        durationWeekEl.textContent = formatDuration(stats.week.duration);
+        durationMonthEl.textContent = formatDuration(stats.month.duration);
+        durationTotalEl.textContent = formatDuration(stats.totalDuration);
       }
 
       function determineUserKey(entries) {
@@ -467,82 +988,85 @@
         return [...prioritized, ...remaining];
       }
 
-      function updateSummary(entries) {
-        totalEntriesEl.textContent = new Intl.NumberFormat("de-DE").format(entries.length);
+      function updateSummary(filteredEntries, allEntries) {
+        totalExercisesEl.textContent = formatNumber(filteredEntries.length);
 
-        const groupingKey = determineGroupingKey(entries);
-        const userKey = determineUserKey(entries);
-        const timeKey = determineTimeKey(entries);
-
-        const exerciseMap = new Map();
-        if (groupingKey) {
-          for (const entry of entries) {
-            if (!entry || typeof entry !== "object") continue;
-            const value = entry[groupingKey];
-            if (!value) continue;
-            const label = typeof value === "string" ? value : JSON.stringify(value);
-            const current = exerciseMap.get(label) || 0;
-            exerciseMap.set(label, current + 1);
+        const exerciseStats = new Map();
+        for (const entry of filteredEntries) {
+          if (!entry || typeof entry !== "object") {
+            continue;
+          }
+          const id = getExerciseId(entry);
+          if (!id) {
+            continue;
+          }
+          const name = getExerciseName(entry);
+          const current = exerciseStats.get(id);
+          if (current) {
+            current.count += 1;
+            if (!current.name || current.name === current.id) {
+              current.name = name;
+            }
+          } else {
+            exerciseStats.set(id, { id, name, count: 1 });
           }
         }
 
-        if (exerciseMap.size === 0) {
-          uniqueExercisesEl.textContent = "–";
+        const userKey = determineUserKey(filteredEntries);
+
+        if (!exerciseStats.size) {
+          uniqueExercisesEl.textContent = "0";
           exerciseSummaryHint.textContent = "Keine Übungsdaten verfügbar.";
           topExercisesList.innerHTML = "";
           exerciseStatus.hidden = false;
-          exerciseStatus.textContent = "Keine Übungen gefunden.";
           exerciseStatus.dataset.type = "empty";
-        } else {
-          uniqueExercisesEl.textContent = exerciseMap.size;
-          exerciseSummaryHint.textContent = `Erfasste Übungen anhand von \"${groupingKey}\".`;
-
-          const topEntries = Array.from(exerciseMap.entries())
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 10);
-
-          topExercisesList.innerHTML = topEntries
-            .map(([label, count]) => {
-              const formattedCount = new Intl.NumberFormat("de-DE").format(count);
-              return `<li class="list-item"><strong>${label}</strong><span>${formattedCount}×</span></li>`;
-            })
-            .join("");
-
-          exerciseStatus.hidden = true;
+          if (allEntries.length && allEntries.every(isTestExercise)) {
+            exerciseStatus.textContent =
+              "Nur Testeinträge vorhanden. Diese werden aus den Statistiken herausgefiltert.";
+          } else if (allEntries.length) {
+            exerciseStatus.textContent = "Keine gültigen Übungsdaten gefunden.";
+          } else {
+            exerciseStatus.textContent = "Keine Einträge vorhanden.";
+          }
+          return;
         }
+
+        uniqueExercisesEl.textContent = formatNumber(exerciseStats.size);
+        let hint = "Erfasste Übungen anhand ihrer IDs (Testeinträge ausgeschlossen).";
 
         if (userKey) {
           const users = new Set();
-          for (const entry of entries) {
-            if (!entry || typeof entry !== "object") continue;
-            if (entry[userKey]) {
-              users.add(entry[userKey]);
+          for (const entry of filteredEntries) {
+            if (!entry || typeof entry !== "object") {
+              continue;
+            }
+            const identifier = entry[userKey];
+            if (identifier !== undefined && identifier !== null && identifier !== "") {
+              users.add(identifier);
             }
           }
           if (users.size > 0) {
-            exerciseSummaryHint.textContent += ` · ${users.size} Teilnehmende anhand von \"${userKey}\".`;
+            hint += ` · ${formatNumber(users.size)} Teilnehmende (\"${userKey}\").`;
           }
         }
 
-        if (timeKey) {
-          const timestamps = entries
-            .map(entry => entry && entry[timeKey])
-            .filter(Boolean)
-            .map(value => {
-              const date = new Date(value);
-              return Number.isNaN(date.getTime()) ? null : date.getTime();
-            })
-            .filter(value => typeof value === "number");
+        exerciseSummaryHint.textContent = hint;
 
-          if (timestamps.length) {
-            const latest = Math.max(...timestamps);
-            lastUpdateEl.textContent = formatDate(latest);
-          } else {
-            lastUpdateEl.textContent = "–";
-          }
-        } else {
-          lastUpdateEl.textContent = "–";
-        }
+        const topEntries = Array.from(exerciseStats.values())
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+
+        topExercisesList.innerHTML = topEntries
+          .map(item => {
+            const titleAttr = escapeHtml(`ID: ${item.id}`);
+            return `<li class="list-item" title="${titleAttr}"><strong>${escapeHtml(
+              item.name,
+            )}</strong><span>${formatNumber(item.count)}×</span></li>`;
+          })
+          .join("");
+
+        exerciseStatus.hidden = true;
+        delete exerciseStatus.dataset.type;
       }
 
       function updateTable(entries) {
@@ -589,6 +1113,16 @@
         exerciseStatus.dataset.type = "error";
         exerciseStatus.textContent =
           "Kein API-Endpunkt für Übungsstatistiken konfiguriert.";
+        chartStatus.hidden = false;
+        chartStatus.dataset.type = "error";
+        chartStatus.textContent =
+          "Kein API-Endpunkt für Übungsstatistiken konfiguriert.";
+        if (weeklyChartCanvas) {
+          const context = weeklyChartCanvas.getContext("2d");
+          if (context) {
+            context.clearRect(0, 0, weeklyChartCanvas.width, weeklyChartCanvas.height);
+          }
+        }
         refreshBtn.disabled = true;
         return false;
       }
@@ -620,6 +1154,8 @@
         tableStatus.textContent = "Lade Daten...";
         tableStatus.dataset.type = "info";
         exerciseStatus.hidden = true;
+        chartStatus.hidden = true;
+        delete chartStatus.dataset.type;
 
         try {
           const controller = new AbortController();
@@ -628,23 +1164,38 @@
           clearTimeout(timeout);
           latestData = data;
 
+          const filteredData = data.filter(entry => !isTestExercise(entry));
+
+          updateSummary(filteredData, data);
+          updateActivityStats(filteredData);
+          updateWeeklyChart(filteredData);
+          updateTable(data);
+
           if (!data.length) {
-            updateSummary([]);
-            updateTable([]);
-            exerciseStatus.hidden = false;
-            exerciseStatus.dataset.type = "empty";
-            exerciseStatus.textContent = "Keine Einträge vorhanden.";
+            chartStatus.hidden = false;
+            chartStatus.dataset.type = "empty";
+            chartStatus.textContent = "Keine Einträge vorhanden.";
             return;
           }
 
-          updateSummary(data);
-          updateTable(data);
+          const filteredOut = data.length - filteredData.length;
+          if (filteredOut > 0) {
+            tableStatus.textContent = `${formatNumber(
+              data.length,
+            )} Einträge angezeigt (inkl. ${formatNumber(filteredOut)} Testeinträgen).`;
+          } else {
+            tableStatus.textContent = `${formatNumber(data.length)} Einträge angezeigt.`;
+          }
+          delete tableStatus.dataset.type;
         } catch (error) {
           tableStatus.textContent = error?.message || "Unbekannter Fehler beim Laden.";
           tableStatus.dataset.type = "error";
           exerciseStatus.hidden = false;
           exerciseStatus.dataset.type = "error";
           exerciseStatus.textContent = "Statistiken konnten nicht geladen werden.";
+          chartStatus.hidden = false;
+          chartStatus.dataset.type = "error";
+          chartStatus.textContent = "Diagramm konnte nicht geladen werden.";
           console.error(error);
         } finally {
           refreshBtn.disabled = false;
@@ -658,6 +1209,12 @@
       document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible" && latestData.length) {
           loadData();
+        }
+      });
+
+      window.addEventListener("resize", () => {
+        if (currentWeeklyBuckets.length) {
+          renderWeeklyChart(currentWeeklyBuckets);
         }
       });
 
