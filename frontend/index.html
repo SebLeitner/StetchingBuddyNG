@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#3d8bff" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <title>Stretch Coach</title>
+  <title>Stretch Buddy</title>
   <style>
     :root {
       color-scheme: light;
@@ -25,6 +25,10 @@
 
     * {
       box-sizing: border-box;
+    }
+
+    [hidden] {
+      display: none !important;
     }
 
     body {
@@ -314,16 +318,6 @@
       box-shadow: none;
     }
 
-    #skipBtn {
-      background: var(--accent-warn);
-      box-shadow: 0 10px 20px rgba(243, 156, 18, 0.2);
-    }
-
-    #stopBtn {
-      background: var(--accent-stop);
-      box-shadow: 0 10px 20px rgba(231, 76, 60, 0.25);
-    }
-
     .progress-container {
       width: 100%;
       height: 10px;
@@ -343,20 +337,292 @@
       text-align: center;
       font-size: 0.8rem;
       color: var(--text-secondary);
+      display: grid;
+      gap: 0.75rem;
     }
 
     footer span {
       display: inline-flex;
       align-items: center;
       gap: 0.3rem;
+      justify-content: center;
+    }
+
+    .stats-button {
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 12px 22px rgba(61, 139, 255, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .stats-button:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .stats-button:active {
+      transform: translateY(0);
+      filter: brightness(0.95);
+    }
+
+    .main-actions {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .primary-button {
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 0.95rem 1.2rem;
+      border-radius: 16px;
+      border: none;
+      cursor: pointer;
+      color: #fff;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 12px 24px rgba(61, 139, 255, 0.28);
+      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+    }
+
+    .primary-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .primary-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+      box-shadow: none;
+    }
+
+    .secondary-button {
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.8rem 1rem;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      background: rgba(61, 139, 255, 0.12);
+      color: var(--accent-strong);
+      transition: transform 0.15s ease, filter 0.2s ease;
+    }
+
+    .secondary-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .secondary-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .danger-button {
+      font-size: 0.95rem;
+      font-weight: 600;
+      padding: 0.8rem 1rem;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      background: var(--accent-stop);
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(231, 76, 60, 0.28);
+      transition: transform 0.15s ease, filter 0.2s ease;
+    }
+
+    .danger-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .danger-button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+      box-shadow: none;
+    }
+
+    .ghost-button {
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 0.7rem 1rem;
+      border-radius: 14px;
+      border: 1px solid rgba(61, 139, 255, 0.35);
+      background: transparent;
+      color: var(--accent-strong);
+      cursor: pointer;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease;
+    }
+
+    .ghost-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      background: rgba(61, 139, 255, 0.12);
+    }
+
+    .ghost-button--small {
+      padding: 0.45rem 0.8rem;
+      font-size: 0.85rem;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: clamp(1.2rem, 4vw, 2rem);
+      background: rgba(17, 33, 52, 0.55);
+      backdrop-filter: blur(6px);
+      z-index: 20;
+    }
+
+    .modal-card {
+      width: min(540px, 100%);
+      background: var(--surface);
+      border-radius: var(--radius-large);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 1.5rem;
+      padding: clamp(1.6rem, 4vw, 2.2rem);
+      max-height: min(90vh, 720px);
+      overflow-y: auto;
+      font-size: 0.95rem;
+    }
+
+    .modal-card--narrow {
+      width: min(480px, 100%);
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.4rem;
+    }
+
+    .modal-header p {
+      margin: 0.35rem 0 0;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    .modal-content {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    .exercise-overview {
+      display: grid;
+      gap: 0.65rem;
+    }
+
+    .exercise-facts {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.5rem;
+    }
+
+    .exercise-facts li {
+      font-size: 0.85rem;
+      padding: 0.65rem 0.8rem;
+      border-radius: 12px;
+      background: rgba(61, 139, 255, 0.08);
+      color: var(--text-secondary);
+    }
+
+    .session-stage {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    .session-display {
+      min-height: 3.2rem;
+      display: grid;
+      place-items: center;
+      padding: 1.3rem;
+      font-size: clamp(1.6rem, 4.5vw, 2.4rem);
+      font-weight: 600;
+      border-radius: 20px;
+      background: rgba(61, 139, 255, 0.08);
+      color: var(--text-primary);
+      line-height: 1.3;
+      text-align: center;
+    }
+
+    .session-summary {
+      margin: 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    .modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      align-items: center;
+    }
+
+    .modal-actions > *:first-child {
+      margin-right: auto;
+    }
+
+    .session-controls {
+      display: flex;
+      gap: 0.65rem;
+      flex-wrap: wrap;
+    }
+
+    .debug-panel {
+      max-height: min(60vh, 520px);
+      overflow: auto;
+      border-radius: 18px;
+      background: rgba(26, 42, 58, 0.06);
+      border: 1px solid rgba(61, 139, 255, 0.18);
+      padding: 1rem;
+    }
+
+    .debug-log {
+      margin: 0;
+      white-space: pre-wrap;
+      font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono",
+        "Courier New", monospace;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+    }
+
+    @media (max-width: 520px) {
+      .modal-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .modal-actions > *:first-child {
+        margin-right: 0;
+      }
+
+      .session-controls {
+        width: 100%;
+        justify-content: space-between;
+      }
     }
   </style>
 </head>
 <body>
   <div class="app-card">
     <header>
-      <h1>🧘 Stretch Coach</h1>
-      <p>Starte dein geführtes Stretching – mit Sprachansagen und präzisem Timing.</p>
+      <h1>🧘 Stretch Buddy</h1>
+      <p>Weniger Knacken, mehr Flex – mit deinem Stretch Buddy.</p>
     </header>
 
     <div class="input-group">
@@ -380,39 +646,74 @@
       <p class="group-hint" id="voiceModeHint"></p>
     </div>
 
-    <div id="display">Bereit?</div>
-    <div class="progress-container" id="repProgressContainer" hidden>
-      <div class="progress-bar" id="repProgressBar" aria-hidden="true"></div>
-    </div>
-
-    <div class="actions">
-      <button id="startBtn" disabled>Start</button>
-      <button id="skipBtn" disabled>Weiter</button>
-      <button id="stopBtn" disabled>Abbrechen</button>
+    <div class="main-actions">
+      <button id="openSessionBtn" class="primary-button" type="button" disabled>Start</button>
+      <button id="viewStatsBtn" type="button" class="stats-button">Statistiken ansehen</button>
     </div>
 
     <div id="statusMessage" role="status" aria-live="polite" hidden></div>
 
-    <div class="advanced-card">
-      <div class="advanced-header">
-        <p class="advanced-title">DEBUG-MODUS</p>
-        <label class="switch" for="debugToggle">
-          <input type="checkbox" id="debugToggle" aria-label="Debug-Modus umschalten" />
-          <span class="switch-track">
-            <span class="switch-thumb"></span>
-          </span>
-        </label>
+    <button id="debugLogBtn" type="button" class="ghost-button">Debug Log ansehen</button>
+  </div>
+
+  <div class="modal-backdrop" id="exerciseModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="exerciseModalTitle" id="exerciseModalCard">
+      <header class="modal-header">
+        <div>
+          <h2 id="exerciseModalTitle">Übung</h2>
+          <p id="exerciseModalSubtitle">Dein persönlicher Stretch Buddy begleitet dich.</p>
+        </div>
+        <button id="sessionCloseBtn" type="button" class="ghost-button ghost-button--small">Schließen</button>
+      </header>
+      <div class="modal-content">
+        <section class="exercise-overview">
+          <ul id="exerciseFacts" class="exercise-facts"></ul>
+        </section>
+        <section class="session-stage">
+          <div id="display" class="session-display">Bereit?</div>
+          <div class="progress-container" id="repProgressContainer" hidden>
+            <div class="progress-bar" id="repProgressBar" aria-hidden="true"></div>
+          </div>
+        </section>
+        <p id="sessionSummary" class="session-summary" hidden></p>
+      </div>
+      <div class="modal-actions">
+        <button id="sessionStartBtn" class="primary-button" type="button">Start</button>
+        <div id="sessionControls" class="session-controls" hidden>
+          <button id="continueBtn" type="button" class="secondary-button" disabled>Weiter</button>
+          <button id="pauseBtn" type="button" class="secondary-button" disabled>Pause</button>
+          <button id="stopBtn" type="button" class="danger-button">Abbrechen</button>
+        </div>
       </div>
     </div>
+  </div>
 
-    <footer>
-      <span>Bleib flexibel und achtsam ✨</span>
-    </footer>
+  <div class="modal-backdrop" id="debugModal" hidden>
+    <div class="modal-card modal-card--narrow" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
+      <header class="modal-header">
+        <h2 id="debugModalTitle">Debug Log</h2>
+        <button id="closeDebugModal" type="button" class="ghost-button ghost-button--small">Schließen</button>
+      </header>
+      <div id="debugPanel" class="debug-panel">
+        <pre id="debugLog" class="debug-log">Noch keine Einträge.</pre>
+      </div>
+    </div>
   </div>
 
   <script src="./config.production.js"></script>
   <script>
     const countdownStepSelect = document.getElementById("countdownStepSelect");
+    const viewStatsBtn = document.getElementById("viewStatsBtn");
+    const openSessionBtn = document.getElementById("openSessionBtn");
+    const debugLogBtn = document.getElementById("debugLogBtn");
+    const exerciseModal = document.getElementById("exerciseModal");
+    const sessionCloseBtn = document.getElementById("sessionCloseBtn");
+    const exerciseModalTitle = document.getElementById("exerciseModalTitle");
+    const exerciseModalSubtitle = document.getElementById("exerciseModalSubtitle");
+    const exerciseFacts = document.getElementById("exerciseFacts");
+    const sessionSummary = document.getElementById("sessionSummary");
+    const sessionControls = document.getElementById("sessionControls");
+    const exerciseOverviewSection = document.querySelector(".exercise-overview");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -421,8 +722,14 @@
     let voiceMode = "auto";
     let exercises = [];
     let exercise = null;
+    let mindfulnessPrompts = [];
     let skipRequested = false;
     let aborted = false;
+    let sessionRunning = false;
+    let pauseRequested = false;
+    let pauseAwaitingResume = false;
+    let pauseResumeResolver = null;
+    let pauseContext = null;
     const hasBrowserSpeech = "speechSynthesis" in window;
     let currentAudio = null;
     let currentAudioUrl = null;
@@ -438,18 +745,21 @@
     let audioContextUnlockPromise = null;
     let audioUnlocked = false;
     let lastAudioUnlockError = "";
+    let visibleModalCount = 0;
 
     const display = document.getElementById("display");
-    const startBtn = document.getElementById("startBtn");
-    const skipBtn = document.getElementById("skipBtn");
+    const startBtn = document.getElementById("sessionStartBtn");
+    const continueBtn = document.getElementById("continueBtn");
+    const pauseBtn = document.getElementById("pauseBtn");
     const stopBtn = document.getElementById("stopBtn");
+    const closeDebugModalBtn = document.getElementById("closeDebugModal");
+    const debugModal = document.getElementById("debugModal");
     const select = document.getElementById("exerciseSelect");
     const statusMessage = document.getElementById("statusMessage");
     const voiceModeRadios = Array.from(document.querySelectorAll('input[name="voiceMode"]'));
     const voiceModeHint = document.getElementById("voiceModeHint");
     const debugPanel = document.getElementById("debugPanel");
     const debugLog = document.getElementById("debugLog");
-    const debugToggle = document.getElementById("debugToggle");
     const debugEntries = [];
     const repProgressContainer = document.getElementById("repProgressContainer");
     const repProgressBar = document.getElementById("repProgressBar");
@@ -465,6 +775,10 @@
     const speechConfig = window.STRETCH_COACH_CONFIG || {};
     const preferredVoice = speechConfig.voiceId ? String(speechConfig.voiceId) : null;
     const SPEECH_API_ENDPOINT = determineSpeechEndpoint(speechConfig);
+    const PROGRESS_API_ENDPOINT = determineProgressEndpoint(speechConfig);
+    const CLIENT_ID_STORAGE_KEY = "stretchCoachClientId";
+    const COMPLETION_REQUEST_TIMEOUT_MS = 8000;
+    let cachedClientId = null;
 
     function stripTrailingSlash(value) {
       return value.replace(/\/+$/, "");
@@ -482,6 +796,70 @@
       return "/api/speak";
     }
 
+    function determineProgressEndpoint(config) {
+      if (config && typeof config.progressApiUrl === "string") {
+        const trimmed = config.progressApiUrl.trim();
+        if (!trimmed) {
+          return "/api/exercise-completions";
+        }
+        const normalized = stripTrailingSlash(trimmed);
+        return normalized || "/api/exercise-completions";
+      }
+      if (config && config.progressApiUrl === null) {
+        return null;
+      }
+      if (config && typeof config.progressApiBaseUrl === "string") {
+        const trimmedBase = config.progressApiBaseUrl.trim();
+        if (!trimmedBase) {
+          return "/api/exercise-completions";
+        }
+        const normalizedBase = stripTrailingSlash(trimmedBase);
+        return normalizedBase
+          ? `${normalizedBase}/api/exercise-completions`
+          : "/api/exercise-completions";
+      }
+      return "/api/exercise-completions";
+    }
+
+    function collectMindfulnessPrompts(source, result) {
+      if (!source) {
+        return result;
+      }
+      if (Array.isArray(source)) {
+        for (const entry of source) {
+          collectMindfulnessPrompts(entry, result);
+        }
+        return result;
+      }
+      if (typeof source === "object") {
+        for (const value of Object.values(source)) {
+          collectMindfulnessPrompts(value, result);
+        }
+        return result;
+      }
+      if (typeof source === "string") {
+        const trimmed = source.trim();
+        if (trimmed) {
+          result.push(trimmed);
+        }
+      }
+      return result;
+    }
+
+    function flattenMindfulnessPrompts(data) {
+      const buffer = [];
+      collectMindfulnessPrompts(data, buffer);
+      return buffer;
+    }
+
+    function getRandomMindfulnessPrompt() {
+      if (!Array.isArray(mindfulnessPrompts) || mindfulnessPrompts.length === 0) {
+        return null;
+      }
+      const index = Math.floor(Math.random() * mindfulnessPrompts.length);
+      return mindfulnessPrompts[index] ?? null;
+    }
+
     function setStatus(message = "", type = "info") {
       if (!statusMessage) return;
       if (!message) {
@@ -496,7 +874,6 @@
     }
 
     function appendDebug(message, details = "") {
-      if (!debugPanel || !debugLog) return;
       const timestamp = new Date().toLocaleTimeString();
       let entry = `[${timestamp}] ${message}`;
       if (details) {
@@ -506,7 +883,364 @@
       while (debugEntries.length > DEBUG_MAX_ENTRIES) {
         debugEntries.shift();
       }
-      updateDebugVisibility();
+      refreshDebugLog();
+    }
+
+    function refreshDebugLog() {
+      if (!debugLog) return;
+      if (!debugEntries.length) {
+        debugLog.textContent = "Noch keine Einträge.";
+        return;
+      }
+      debugLog.textContent = debugEntries.join("\n\n");
+    }
+
+    function setModalVisibility(modal, visible) {
+      if (!modal) return;
+      const currentlyVisible = !modal.hidden;
+      if (visible === currentlyVisible) {
+        return;
+      }
+      modal.hidden = !visible;
+      modal.setAttribute("aria-hidden", visible ? "false" : "true");
+      visibleModalCount += visible ? 1 : -1;
+      if (visibleModalCount < 0) {
+        visibleModalCount = 0;
+      }
+      if (typeof document !== "undefined" && document.body) {
+        if (visibleModalCount > 0) {
+          document.body.style.overflow = "hidden";
+        } else {
+          document.body.style.overflow = "";
+        }
+      }
+    }
+
+    function openModal(modal) {
+      setModalVisibility(modal, true);
+    }
+
+    function closeModal(modal) {
+      setModalVisibility(modal, false);
+    }
+
+    function formatFact(label, value, suffix = "") {
+      return `${label}: ${value}${suffix}`;
+    }
+
+    function updateExerciseOverview(ex) {
+      if (exerciseModalTitle) {
+        exerciseModalTitle.textContent = ex && ex.name ? ex.name : "Übung";
+      }
+      if (exerciseModalSubtitle) {
+        if (ex && Number.isInteger(ex.sets) && Number.isInteger(ex.duration)) {
+          exerciseModalSubtitle.textContent = `${ex.sets} Sätze · ${ex.duration} Wiederholungen pro Satz`;
+        } else if (ex && Number.isInteger(ex.sets)) {
+          exerciseModalSubtitle.textContent = `${ex.sets} Sätze`;
+        } else {
+          exerciseModalSubtitle.textContent = "Dein persönlicher Stretch Buddy begleitet dich.";
+        }
+      }
+      if (exerciseFacts) {
+        if (!ex) {
+          exerciseFacts.innerHTML = "";
+        } else {
+          const factItems = [];
+          const hasSets = Number.isInteger(ex.sets);
+          const hasDuration = Number.isInteger(ex.duration);
+          if (!(hasSets && hasDuration)) {
+            if (hasSets) {
+              factItems.push(formatFact("Sätze", ex.sets));
+            }
+            if (hasDuration) {
+              factItems.push(formatFact("Wiederholungen pro Satz", ex.duration));
+            }
+          }
+          if (Number.isFinite(ex.rep_time)) {
+            factItems.push(formatFact("Dauer je Wiederholung", ex.rep_time, " Sekunden"));
+          }
+          if (Number.isFinite(ex.prep_time)) {
+            factItems.push(formatFact("Vorbereitungszeit", ex.prep_time, " Sekunden"));
+          }
+          if (Number.isFinite(ex.rest_time)) {
+            factItems.push(formatFact("Pause zwischen den Sätzen", ex.rest_time, " Sekunden"));
+          }
+          exerciseFacts.innerHTML = factItems.map(item => `<li>${item}</li>`).join("");
+        }
+      }
+    }
+
+    function resetProgress() {
+      if (!repProgressContainer || !repProgressBar) return;
+      repProgressBar.style.transition = "none";
+      repProgressBar.style.width = "0%";
+      repProgressContainer.hidden = true;
+    }
+
+    function resetSessionUI() {
+      sessionRunning = false;
+      skipRequested = false;
+      aborted = false;
+      pauseRequested = false;
+      pauseAwaitingResume = false;
+      pauseResumeResolver = null;
+      pauseContext = null;
+      if (startBtn) {
+        startBtn.hidden = false;
+        startBtn.disabled = false;
+        startBtn.textContent = "Start";
+      }
+      if (sessionControls) {
+        sessionControls.hidden = true;
+      }
+      if (continueBtn) {
+        continueBtn.disabled = true;
+        continueBtn.textContent = "Weiter";
+      }
+      if (exerciseOverviewSection) {
+        exerciseOverviewSection.hidden = false;
+      }
+      if (pauseBtn) {
+        pauseBtn.disabled = true;
+      }
+      if (stopBtn) {
+        stopBtn.disabled = true;
+      }
+      if (sessionCloseBtn) {
+        sessionCloseBtn.hidden = false;
+        sessionCloseBtn.disabled = false;
+      }
+      if (sessionSummary) {
+        sessionSummary.hidden = true;
+        sessionSummary.textContent = "";
+      }
+      resetProgress();
+      if (display) {
+        const preview = buildInstructionSpeech(exercise);
+        display.textContent = preview || (exercise && exercise.name ? exercise.name : "Bereit?");
+      }
+    }
+
+    function startSessionUI() {
+      sessionRunning = true;
+      pauseRequested = false;
+      pauseAwaitingResume = false;
+      pauseResumeResolver = null;
+      pauseContext = null;
+      resetProgress();
+      if (startBtn) {
+        startBtn.disabled = true;
+        startBtn.hidden = true;
+      }
+      if (sessionControls) {
+        sessionControls.hidden = false;
+      }
+      if (continueBtn) {
+        continueBtn.disabled = true;
+      }
+      if (exerciseOverviewSection) {
+        exerciseOverviewSection.hidden = true;
+      }
+      if (pauseBtn) {
+        pauseBtn.disabled = false;
+      }
+      if (stopBtn) {
+        stopBtn.disabled = false;
+      }
+      if (sessionCloseBtn) {
+        sessionCloseBtn.hidden = true;
+      }
+      if (sessionSummary) {
+        sessionSummary.hidden = true;
+        sessionSummary.textContent = "";
+      }
+    }
+
+    function finishSessionUI({ completed }) {
+      sessionRunning = false;
+      pauseRequested = false;
+      pauseAwaitingResume = false;
+      pauseResumeResolver = null;
+      pauseContext = null;
+      if (sessionControls) {
+        sessionControls.hidden = true;
+      }
+      resetProgress();
+      if (startBtn) {
+        startBtn.hidden = false;
+        startBtn.disabled = false;
+        startBtn.textContent = completed ? "Nochmals starten" : "Erneut starten";
+      }
+      if (continueBtn) {
+        continueBtn.disabled = true;
+        continueBtn.textContent = "Weiter";
+      }
+      if (exerciseOverviewSection) {
+        exerciseOverviewSection.hidden = false;
+      }
+      if (pauseBtn) {
+        pauseBtn.disabled = true;
+      }
+      if (stopBtn) {
+        stopBtn.disabled = true;
+      }
+      if (sessionCloseBtn) {
+        sessionCloseBtn.hidden = false;
+        sessionCloseBtn.disabled = false;
+      }
+      if (sessionSummary) {
+        sessionSummary.textContent = completed
+          ? "Geschafft! Du hast die Übung abgeschlossen."
+          : "Übung abgebrochen.";
+        sessionSummary.hidden = false;
+      }
+    }
+
+    function resolvePauseAwaiting() {
+      pauseRequested = false;
+      if (pauseResumeResolver) {
+        const resolver = pauseResumeResolver;
+        pauseResumeResolver = null;
+        pauseAwaitingResume = false;
+        pauseContext = null;
+        try {
+          resolver();
+        } catch (_err) {
+          // ignore resolve errors
+        }
+      } else {
+        pauseAwaitingResume = false;
+        pauseContext = null;
+      }
+      if (continueBtn) {
+        continueBtn.disabled = true;
+        continueBtn.textContent = "Weiter";
+      }
+    }
+
+    async function handlePauseIfNeeded() {
+      if (!pauseRequested || aborted) {
+        pauseRequested = false;
+        return;
+      }
+      pauseRequested = false;
+      pauseAwaitingResume = true;
+      pauseContext = "default";
+      if (pauseBtn) {
+        pauseBtn.disabled = true;
+      }
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
+      }
+      appendDebug("Pause aktiviert.");
+      if (display) {
+        display.textContent = "Pause aktiv!";
+      }
+      await speak("Pause aktiv!");
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
+      }
+      await new Promise(resolve => {
+        pauseResumeResolver = resolve;
+      });
+      if (pauseBtn && !aborted) {
+        pauseBtn.disabled = false;
+      }
+    }
+
+    async function handleCountdownPause() {
+      if (!pauseRequested || aborted) {
+        pauseRequested = false;
+        return;
+      }
+      pauseRequested = false;
+      pauseAwaitingResume = true;
+      pauseContext = "countdown";
+      if (pauseBtn) {
+        pauseBtn.disabled = true;
+      }
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
+      }
+      appendDebug("Countdown wird angehalten.");
+      if (display) {
+        display.textContent = "Countdown angehalten";
+      }
+      await speak("Countdown angehalten");
+      if (continueBtn) {
+        continueBtn.disabled = false;
+        continueBtn.textContent = "Fortsetzen";
+      }
+      await new Promise(resolve => {
+        pauseResumeResolver = resolve;
+      });
+      if (pauseBtn && !aborted) {
+        pauseBtn.disabled = false;
+      }
+    }
+
+    async function resumeFromPause() {
+      if (!pauseAwaitingResume) return;
+      pauseAwaitingResume = false;
+      const resolver = pauseResumeResolver;
+      pauseResumeResolver = null;
+      if (continueBtn) {
+        continueBtn.disabled = true;
+        continueBtn.textContent = "Weiter";
+      }
+      appendDebug("Pause wird beendet.");
+      if (pauseContext === "countdown") {
+        pauseContext = null;
+        if (display) {
+          display.textContent = "Countdown wird fortgesetzt";
+        }
+        await speak("Countdown wird fortgesetzt");
+      } else {
+        if (display) {
+          display.textContent = "Pause endet in 10 Sekunden";
+        }
+        await speak("Pause Ende in 10 Sekunden");
+        await countdown(10, "", "");
+        pauseContext = null;
+      }
+      if (pauseBtn && !aborted) {
+        pauseBtn.disabled = false;
+      }
+      if (typeof resolver === "function") {
+        resolver();
+      }
+    }
+
+    async function waitWithPauseSupport(durationMs, options = {}) {
+      let remaining = Math.max(0, Number(durationMs) || 0);
+      if (remaining <= 0) {
+        return;
+      }
+      const onResume = typeof options.onResume === "function" ? options.onResume : null;
+      while (remaining > 0 && !aborted) {
+        if (pauseRequested) {
+          await handlePauseIfNeeded();
+          if (aborted) {
+            return;
+          }
+          if (onResume) {
+            try {
+              onResume();
+            } catch (error) {
+              console.error("Fehler beim Wiederherstellen der Pausenanzeige", error);
+            }
+          }
+        }
+        const step = Math.min(remaining, 250);
+        await new Promise(resolve => setTimeout(resolve, step));
+        if (aborted) {
+          return;
+        }
+        remaining -= step;
+      }
     }
 
     function describeError(error) {
@@ -525,20 +1259,64 @@
       return String(error);
     }
 
+    function safeLocalStorageGetItem(key) {
+      try {
+        return window.localStorage ? window.localStorage.getItem(key) : null;
+      } catch (error) {
+        appendDebug("Konnte localStorage nicht lesen.", describeError(error));
+        return null;
+      }
+    }
+
+    function safeLocalStorageSetItem(key, value) {
+      try {
+        if (window.localStorage) {
+          window.localStorage.setItem(key, value);
+        }
+      } catch (error) {
+        appendDebug("Konnte localStorage nicht schreiben.", describeError(error));
+      }
+    }
+
+    function createClientId() {
+      if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+        return crypto.randomUUID();
+      }
+      const randomPart = Math.random().toString(16).slice(2, 10);
+      return `client-${Date.now()}-${randomPart}`;
+    }
+
+    function getOrCreateClientId() {
+      if (cachedClientId) {
+        return cachedClientId;
+      }
+      const existing = safeLocalStorageGetItem(CLIENT_ID_STORAGE_KEY);
+      if (existing && typeof existing === "string" && existing.trim()) {
+        cachedClientId = existing.trim();
+        return cachedClientId;
+      }
+      const newId = createClientId();
+      cachedClientId = newId;
+      safeLocalStorageSetItem(CLIENT_ID_STORAGE_KEY, newId);
+      return cachedClientId;
+    }
+
+    function isoStringFromTimestamp(timestamp) {
+      if (typeof timestamp !== "number" || Number.isNaN(timestamp)) {
+        return null;
+      }
+      try {
+        return new Date(timestamp).toISOString();
+      } catch (_err) {
+        return null;
+      }
+    }
+
     function truncateTextForDebug(text, maxLength = 90) {
       if (typeof text !== "string") {
         return "";
       }
       return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
-    }
-
-    function updateDebugVisibility() {
-      if (!debugPanel || !debugLog) return;
-      const shouldShow = Boolean(debugToggle && debugToggle.checked);
-      debugPanel.hidden = !shouldShow;
-      if (shouldShow) {
-        debugLog.textContent = debugEntries.join("\n\n");
-      }
     }
 
     function updateVoiceModeHint() {
@@ -555,14 +1333,10 @@
       const instruction = (ex.instruction || "").trim();
       if (!instruction) return name;
       if (name && instruction.toLowerCase().startsWith(name.toLowerCase())) {
-        return instruction;
+        const trimmedInstruction = instruction.slice(name.length).replace(/^[\s.:,-]+/, "").trim();
+        return trimmedInstruction || instruction;
       }
       return name ? `${name}. ${instruction}` : instruction;
-    }
-
-    updateDebugVisibility();
-    if (debugToggle) {
-      debugToggle.addEventListener("change", updateDebugVisibility);
     }
 
     const initialVoiceMode = voiceModeRadios.find(radio => radio.checked)?.value;
@@ -613,7 +1387,9 @@
       if (hasBrowserSpeech) {
         speechSynthesis.cancel();
       }
-      skipBtn.disabled = true;
+      if (continueBtn) {
+        continueBtn.disabled = true;
+      }
     }
 
     async function callSpeechApi(text, { signal } = {}) {
@@ -686,7 +1462,9 @@
           aborted ||
           (error && error.name === "AbortError");
         if (abortedFetch) {
-          skipBtn.disabled = true;
+          if (continueBtn) {
+            continueBtn.disabled = true;
+          }
           return;
         }
         throw error;
@@ -697,7 +1475,9 @@
       }
 
       if (aborted || skipRequested) {
-        skipBtn.disabled = true;
+        if (continueBtn) {
+          continueBtn.disabled = true;
+        }
         return;
       }
 
@@ -727,7 +1507,9 @@
         // ignore load errors
       }
       currentAudio = audio;
-      skipBtn.disabled = false;
+      if (continueBtn) {
+        continueBtn.disabled = false;
+      }
 
       await new Promise((resolve, reject) => {
         let settled = false;
@@ -744,7 +1526,9 @@
             URL.revokeObjectURL(objectUrl);
             currentAudioUrl = null;
           }
-          skipBtn.disabled = true;
+          if (continueBtn) {
+            continueBtn.disabled = true;
+          }
           try {
             audio.pause();
           } catch (_err) {
@@ -823,7 +1607,7 @@
           return;
         }
 
-        skipBtn.disabled = false;
+        continueBtn.disabled = false;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "de-DE";
         utterance.rate = 1;
@@ -843,7 +1627,7 @@
             clearTimeout(guardTimer);
             guardTimer = null;
           }
-          skipBtn.disabled = true;
+          continueBtn.disabled = true;
         };
 
         const finish = () => {
@@ -1146,6 +1930,29 @@
       return;
     }
 
+    // --- Inhalte laden ---
+    fetch("mindfulness.json")
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        const prompts = flattenMindfulnessPrompts(data);
+        mindfulnessPrompts = prompts;
+        if (prompts.length > 0) {
+          appendDebug(`Mindfulness-Impulse geladen (${prompts.length}).`);
+        } else {
+          appendDebug("Keine Mindfulness-Impulse gefunden.");
+        }
+      })
+      .catch(error => {
+        mindfulnessPrompts = [];
+        console.error("Fehler beim Laden der Mindfulness-Impulse", error);
+        appendDebug("Mindfulness-Impulse konnten nicht geladen werden.", describeError(error));
+      });
+
     // --- Übungen laden ---
     fetch("exercises.json")
       .then(res => res.json())
@@ -1153,11 +1960,11 @@
         exercises = data;
         select.innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
         exercise = exercises[0] ?? null;
-        if (exercise) {
-          const preview = buildInstructionSpeech(exercise);
-          display.textContent = preview || exercise.name;
+        updateExerciseOverview(exercise);
+        resetSessionUI();
+        if (openSessionBtn) {
+          openSessionBtn.disabled = exercises.length === 0;
         }
-        startBtn.disabled = exercises.length === 0;
       })
       .catch(err => {
         console.error("Fehler beim Laden der Übungen", err);
@@ -1176,13 +1983,37 @@
 
     // --- Countdown ---
     async function countdown(seconds, label = "", finalCue = "") {
-      for (let i = seconds; i > 0; i--) {
+      let remaining = seconds;
+      const buildLabel = value => `${label}${label ? " " : ""}${value}`;
+      while (remaining > 0) {
         if (aborted) return;
-        display.textContent = `${label}${label ? " " : ""}${i}`;
-        await speak(i.toString());
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+          continue;
+        }
+        const text = buildLabel(remaining);
+        display.textContent = text;
+        await speak(remaining.toString());
+        if (aborted) return;
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+          continue;
+        }
         await new Promise(r => setTimeout(r, countdownStepMs));
+        if (aborted) return;
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+        }
+        remaining -= 1;
       }
-      if (finalCue) {
+      if (finalCue && !aborted) {
+        if (pauseRequested) {
+          await handleCountdownPause();
+          if (aborted) return;
+        }
         display.textContent = finalCue;
         await speak(finalCue);
       }
@@ -1243,6 +2074,8 @@
         await runRepTimer(exercise.rep_time);
         if (aborted) break;
         await speak(i.toString());
+        if (aborted) break;
+        await handlePauseIfNeeded();
       }
 
       if (!aborted) {
@@ -1251,20 +2084,136 @@
       }
     }
 
+    async function recordExerciseCompletion({
+      exercise: exerciseToStore,
+      totalSets,
+      completedSets,
+      startedAt,
+      finishedAt,
+      durationMs,
+    }) {
+      if (!exerciseToStore || !exerciseToStore.id) {
+        return;
+      }
+      if (!PROGRESS_API_ENDPOINT) {
+        appendDebug("Fortschritts-API ist nicht konfiguriert.");
+        return;
+      }
+
+      const clientId = getOrCreateClientId();
+      if (!clientId) {
+        appendDebug("Kein Client-Identifier verfügbar – Fortschritt wird nicht gespeichert.");
+        return;
+      }
+
+      const resolvedTotalSets = Number.isInteger(totalSets)
+        ? totalSets
+        : Number.isInteger(exerciseToStore.sets)
+        ? exerciseToStore.sets
+        : 0;
+      const resolvedCompletedSets = Number.isInteger(completedSets)
+        ? completedSets
+        : resolvedTotalSets;
+
+      if (resolvedTotalSets <= 0 || resolvedCompletedSets < resolvedTotalSets) {
+        appendDebug("Übung nicht vollständig abgeschlossen – kein Speichern.");
+        return;
+      }
+
+      const payload = {
+        clientId,
+        exerciseId: String(exerciseToStore.id),
+        totalSets: resolvedTotalSets,
+        setsCompleted: resolvedCompletedSets,
+      };
+
+      if (exerciseToStore.name) {
+        payload.exerciseName = String(exerciseToStore.name);
+      }
+      if (Number.isInteger(exerciseToStore.rep_time) && exerciseToStore.rep_time > 0) {
+        payload.repTime = Math.trunc(exerciseToStore.rep_time);
+      }
+      if (Number.isInteger(exerciseToStore.rest_time) && exerciseToStore.rest_time >= 0) {
+        payload.restTime = Math.trunc(exerciseToStore.rest_time);
+      }
+      if (Number.isInteger(exerciseToStore.prep_time) && exerciseToStore.prep_time >= 0) {
+        payload.prepTime = Math.trunc(exerciseToStore.prep_time);
+      }
+      if (Number.isInteger(durationMs) && durationMs >= 0) {
+        payload.durationMs = durationMs;
+      }
+
+      const startedIso = isoStringFromTimestamp(startedAt);
+      if (startedIso) {
+        payload.startedAt = startedIso;
+      }
+      const finishedIso = isoStringFromTimestamp(finishedAt);
+      if (finishedIso) {
+        payload.finishedAt = finishedIso;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = window.setTimeout(() => controller.abort(), COMPLETION_REQUEST_TIMEOUT_MS);
+      appendDebug(
+        `Speichere Übungsabschluss für '${payload.exerciseName || payload.exerciseId}'.`,
+        `Sätze: ${resolvedCompletedSets}/${resolvedTotalSets}`
+      );
+
+      try {
+        const response = await fetch(PROGRESS_API_ENDPOINT, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          const contentType = response.headers.get("content-type") || "";
+          let errorDetail = `${response.status}`;
+          if (contentType.includes("application/json")) {
+            try {
+              const data = await response.json();
+              if (data && data.error) {
+                errorDetail = `${response.status} ${data.error}`;
+              }
+            } catch (_err) {
+              // ignore JSON parse error
+            }
+          } else {
+            const text = await response.text();
+            if (text) {
+              errorDetail = `${response.status} ${text}`;
+            }
+          }
+          appendDebug("Fortschritt konnte nicht gespeichert werden.", errorDetail);
+          return;
+        }
+
+        appendDebug("Fortschritt erfolgreich gespeichert.");
+      } catch (error) {
+        if (controller.signal.aborted) {
+          appendDebug("Fortschrittsspeicherung abgebrochen (Timeout).");
+        } else {
+          appendDebug("Fehler beim Speichern des Fortschritts.", describeError(error));
+        }
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    }
+
     // --- Training ---
     async function doExercise() {
       aborted = false;
-      startBtn.disabled = true;
-      stopBtn.disabled = false;
+      skipRequested = false;
+      pauseRequested = false;
+      pauseAwaitingResume = false;
+      pauseResumeResolver = null;
 
       if (!remoteFailureNotified) {
         setStatus("");
       }
 
-      if (repProgressContainer && repProgressBar) {
-        repProgressBar.style.width = "0%";
-        repProgressContainer.hidden = true;
-      }
+      resetProgress();
 
       const instructionSpeech = buildInstructionSpeech(exercise);
       if (instructionSpeech) {
@@ -1277,93 +2226,255 @@
         await speak(instructionSpeech);
       }
 
+      const exerciseStartAt = Date.now();
+      let completedSets = 0;
+
       for (let set = 1; set <= exercise.sets && !aborted; set++) {
         const withPrep = (set === 1);
         await runSet(set, withPrep);
         if (aborted) break;
 
+        completedSets += 1;
+
         if (set < exercise.sets) {
           await speak(`Pause ${exercise.rest_time} Sekunden.`);
-          display.textContent = `Pause: ${exercise.rest_time}s`;
-          await new Promise(r => setTimeout(r, (exercise.rest_time - 5) * 1000));
+          const restSecondsNumeric = Number(exercise.rest_time);
+          const restSeconds = Number.isFinite(restSecondsNumeric) ? restSecondsNumeric : 0;
+          const basePauseText = `Pause: ${exercise.rest_time}s`;
+          const wantsMindfulness =
+            typeof exercise.mindfulness === "string" && exercise.mindfulness.trim().toLowerCase() === "yes";
+          const restWaitMs = Math.max(0, (restSeconds - 5) * 1000);
+          const restorePauseDisplay = () => {
+            if (display && !aborted) {
+              display.textContent = basePauseText;
+            }
+          };
+
+          display.textContent = basePauseText;
+
+          if (restWaitMs > 0) {
+            if (wantsMindfulness) {
+              const beforePromptMs = Math.floor(restWaitMs / 2);
+              const afterPromptMs = Math.max(restWaitMs - beforePromptMs, 0);
+
+              if (beforePromptMs > 0) {
+                await waitWithPauseSupport(beforePromptMs, { onResume: restorePauseDisplay });
+                if (aborted) break;
+              }
+
+              const prompt = getRandomMindfulnessPrompt();
+              if (prompt && !aborted) {
+                const promptDisplayText = `${basePauseText} – ${prompt}`;
+                if (pauseRequested && !aborted) {
+                  await handlePauseIfNeeded();
+                  if (aborted) break;
+                  restorePauseDisplay();
+                }
+                if (!aborted) {
+                  display.textContent = promptDisplayText;
+                  try {
+                    await speak(prompt);
+                  } finally {
+                    if (!aborted) {
+                      restorePauseDisplay();
+                    }
+                  }
+                  if (aborted) break;
+                }
+              }
+
+              if (afterPromptMs > 0 && !aborted) {
+                await waitWithPauseSupport(afterPromptMs, { onResume: restorePauseDisplay });
+              }
+            } else {
+              await waitWithPauseSupport(restWaitMs, { onResume: restorePauseDisplay });
+            }
+          }
           if (aborted) break;
           await speak("Noch fünf Sekunden");
           await countdown(5, "", ""); // kein Los! hier
         }
       }
 
+      const exerciseFinishedAt = Date.now();
+
       if (!aborted) {
         display.textContent = "Fertig! Gut gemacht 🎉";
         await speak("Fertig! Gut gemacht.");
+        await recordExerciseCompletion({
+          exercise,
+          totalSets: exercise.sets,
+          completedSets,
+          startedAt: exerciseStartAt,
+          finishedAt: exerciseFinishedAt,
+          durationMs: Math.max(0, exerciseFinishedAt - exerciseStartAt),
+        });
       } else {
         display.textContent = "Abgebrochen.";
         await speak("Training abgebrochen.");
       }
-
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
     }
 
     // --- Events ---
     select.addEventListener("change", () => {
       const id = select.value;
       exercise = exercises.find(e => e.id === id) ?? null;
-      if (exercise) {
+      updateExerciseOverview(exercise);
+      if (openSessionBtn) {
+        openSessionBtn.disabled = !exercise;
+      }
+      const modalVisible = exerciseModal && !exerciseModal.hidden;
+      if (!sessionRunning && modalVisible) {
+        resetSessionUI();
+      } else if (!sessionRunning && display) {
         const preview = buildInstructionSpeech(exercise);
-        display.textContent = preview || exercise.name;
+        display.textContent = preview || (exercise && exercise.name ? exercise.name : "Bereit?");
       }
     });
 
-    startBtn.addEventListener("click", async () => {
-      exercise = exercises.find(e => e.id === select.value) ?? null;
-      if (!exercise) return;
-      const unlocked = await ensureAudioUnlocked();
-      if (!unlocked) {
-        const warningMessage =
-          lastAudioUnlockError ||
-          "Audioausgabe wurde vom Browser blockiert. Bitte tippe erneut oder prüfe die Autoplay-Einstellungen.";
-        setStatus(warningMessage, "warn");
-        appendDebug(
-          "Audio konnte nicht freigeschaltet werden.",
-          lastAudioUnlockError ? truncateTextForDebug(lastAudioUnlockError, 200) : ""
-        );
-        return;
-      }
-      lastAudioUnlockError = "";
-      void doExercise();
-    });
+    if (openSessionBtn) {
+      openSessionBtn.addEventListener("click", () => {
+        exercise = exercises.find(e => e.id === select.value) ?? null;
+        if (!exercise) {
+          setStatus("Bitte zuerst eine Übung auswählen.", "warn");
+          return;
+        }
+        updateExerciseOverview(exercise);
+        resetSessionUI();
+        openModal(exerciseModal);
+      });
+    }
 
-    skipBtn.addEventListener("click", () => {
-      if (skipBtn.disabled) return;
-      skipRequested = true;
-      if (currentFetchController) {
-        currentFetchController.abort();
-      }
-      if (currentAudio) {
-        currentAudio.pause();
-      } else if (hasBrowserSpeech) {
-        speechSynthesis.cancel();
-      }
-      skipBtn.disabled = true;
-    });
+    if (sessionCloseBtn) {
+      sessionCloseBtn.addEventListener("click", () => {
+        if (sessionRunning) {
+          return;
+        }
+        closeModal(exerciseModal);
+      });
+    }
+
+    if (startBtn) {
+      startBtn.addEventListener("click", async () => {
+        if (sessionRunning) return;
+        exercise = exercises.find(e => e.id === select.value) ?? null;
+        if (!exercise) return;
+        const unlocked = await ensureAudioUnlocked();
+        if (!unlocked) {
+          const warningMessage =
+            lastAudioUnlockError ||
+            "Audioausgabe wurde vom Browser blockiert. Bitte tippe erneut oder prüfe die Autoplay-Einstellungen.";
+          setStatus(warningMessage, "warn");
+          appendDebug(
+            "Audio konnte nicht freigeschaltet werden.",
+            lastAudioUnlockError ? truncateTextForDebug(lastAudioUnlockError, 200) : ""
+          );
+          return;
+        }
+        lastAudioUnlockError = "";
+        startSessionUI();
+        try {
+          await doExercise();
+          finishSessionUI({ completed: !aborted });
+        } catch (error) {
+          console.error("Fehler während der Übung", error);
+          appendDebug("Fehler während der Übung.", describeError(error));
+          finishSessionUI({ completed: false });
+        }
+      });
+    }
+
+    if (continueBtn) {
+      continueBtn.addEventListener("click", async () => {
+        if (continueBtn.disabled) return;
+        if (pauseAwaitingResume) {
+          await resumeFromPause();
+          return;
+        }
+        skipRequested = true;
+        if (currentFetchController) {
+          currentFetchController.abort();
+        }
+        if (currentAudio) {
+          currentAudio.pause();
+        } else if (hasBrowserSpeech) {
+          speechSynthesis.cancel();
+        }
+        continueBtn.disabled = true;
+      });
+    }
+
+    if (pauseBtn) {
+      pauseBtn.addEventListener("click", () => {
+        if (!sessionRunning || pauseRequested || pauseAwaitingResume) {
+          return;
+        }
+        pauseRequested = true;
+        pauseBtn.disabled = true;
+        appendDebug("Pause wird nach der aktuellen Wiederholung aktiviert.");
+      });
+    }
     countdownStepSelect.addEventListener("change", () => {
       countdownStepMs = Number(countdownStepSelect.value);
     });
-    stopBtn.addEventListener("click", () => {
-      aborted = true;
-      skipRequested = false;
-      cancelActiveSpeech();
-      display.textContent = "Abbruch...";
-      startBtn.disabled = false;
-      stopBtn.disabled = true;
-      remoteFailureNotified = false;
-      setStatus("Training gestoppt.", "info");
-      if (repProgressContainer && repProgressBar) {
-        repProgressBar.style.transition = "none";
-        repProgressBar.style.width = "0%";
-        repProgressContainer.hidden = true;
-      }
-    });
+    if (stopBtn) {
+      stopBtn.addEventListener("click", () => {
+        if (!sessionRunning) {
+          return;
+        }
+        const shouldAbort = window.confirm("Möchtest du die Übung wirklich abbrechen?");
+        if (!shouldAbort) {
+          return;
+        }
+        aborted = true;
+        pauseRequested = false;
+        skipRequested = false;
+        resolvePauseAwaiting();
+        cancelActiveSpeech();
+        if (display) {
+          display.textContent = "Abbruch...";
+        }
+        if (continueBtn) {
+          continueBtn.disabled = true;
+        }
+        if (pauseBtn) {
+          pauseBtn.disabled = true;
+        }
+        stopBtn.disabled = true;
+        remoteFailureNotified = false;
+        setStatus("Training gestoppt.", "info");
+        appendDebug("Training wurde abgebrochen.");
+        resetProgress();
+      });
+    }
+
+    if (debugLogBtn) {
+      debugLogBtn.addEventListener("click", () => {
+        refreshDebugLog();
+        openModal(debugModal);
+      });
+    }
+
+    if (closeDebugModalBtn) {
+      closeDebugModalBtn.addEventListener("click", () => {
+        closeModal(debugModal);
+      });
+    }
+
+    if (debugModal) {
+      closeModal(debugModal);
+      debugModal.addEventListener("click", event => {
+        if (event.target === debugModal) {
+          closeModal(debugModal);
+        }
+      });
+    }
+
+    if (viewStatsBtn) {
+      viewStatsBtn.addEventListener("click", () => {
+        window.location.href = "./exercise-completions.html";
+      });
+    }
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

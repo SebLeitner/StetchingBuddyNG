@@ -18,6 +18,24 @@ data "archive_file" "polly_lambda" {
   output_path = "${path.module}/build/polly_lambda.zip"
 }
 
+resource "aws_dynamodb_table" "exercise_completions" {
+  name         = "stretch-coach-exercise-completions"
+  billing_mode = "PAY_PER_REQUEST"
+
+  hash_key  = "client_id"
+  range_key = "completed_at"
+
+  attribute {
+    name = "client_id"
+    type = "S"
+  }
+
+  attribute {
+    name = "completed_at"
+    type = "S"
+  }
+}
+
 resource "aws_s3_bucket" "sbuddy" {
   bucket = "sbuddy.leitnersoft.com"
 }
@@ -185,11 +203,56 @@ resource "aws_iam_role_policy" "speech_lambda_custom" {
   })
 }
 
+resource "aws_iam_role" "progress_lambda" {
+  name               = "stretch-coach-progress-lambda"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Action    = "sts:AssumeRole",
+      Effect    = "Allow",
+      Principal = { Service = "lambda.amazonaws.com" }
+    }]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "progress_lambda_basic_execution" {
+  role       = aws_iam_role.progress_lambda.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+resource "aws_iam_role_policy" "progress_lambda_custom" {
+  name = "stretch-coach-progress-lambda-policy"
+  role = aws_iam_role.progress_lambda.id
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+          "dynamodb:DescribeTable",
+          "dynamodb:PutItem",
+          "dynamodb:Scan",
+          "dynamodb:Query"
+        ]
+        Resource = aws_dynamodb_table.exercise_completions.arn
+      }
+    ]
+  })
+}
+
 resource "aws_cloudwatch_log_group" "speech_lambda" {
   name              = "/aws/lambda/${aws_lambda_function.speech.function_name}"
   retention_in_days = 14
 
   depends_on = [aws_lambda_function.speech]
+}
+
+resource "aws_cloudwatch_log_group" "exercise_progress_lambda" {
+  name              = "/aws/lambda/${aws_lambda_function.exercise_progress.function_name}"
+  retention_in_days = 14
+
+  depends_on = [aws_lambda_function.exercise_progress]
 }
 
 resource "aws_lambda_function" "speech" {
@@ -208,6 +271,28 @@ resource "aws_lambda_function" "speech" {
       DEFAULT_VOICE      = "Vicki"
       MAX_TEXT_LENGTH    = "1500"
       CORS_ALLOW_ORIGIN  = "https://sbuddy.leitnersoft.com"
+      CORS_ALLOW_HEADERS = "Content-Type,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Api-Key"
+      CORS_ALLOW_METHODS = "OPTIONS,POST"
+    }
+  }
+}
+
+resource "aws_lambda_function" "exercise_progress" {
+  function_name = "stretch-coach-exercise-progress"
+  role          = aws_iam_role.progress_lambda.arn
+  handler       = "progress_handler.lambda_handler"
+  runtime       = "python3.10"
+  filename      = data.archive_file.polly_lambda.output_path
+  source_code_hash = data.archive_file.polly_lambda.output_base64sha256
+  timeout       = 10
+  memory_size   = 256
+
+  environment {
+    variables = {
+      PROGRESS_TABLE_NAME = aws_dynamodb_table.exercise_completions.name
+      CORS_ALLOW_ORIGIN   = "https://sbuddy.leitnersoft.com"
+      CORS_ALLOW_HEADERS  = "Content-Type,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Api-Key"
+      CORS_ALLOW_METHODS  = "OPTIONS,POST,GET"
     }
   }
 }
@@ -218,8 +303,14 @@ resource "aws_apigatewayv2_api" "speech" {
 
   cors_configuration {
     allow_credentials = false
-    allow_headers     = ["Content-Type", "Authorization"]
-    allow_methods     = ["OPTIONS", "POST"]
+    allow_headers     = [
+      "Content-Type",
+      "Authorization",
+      "X-Amz-Date",
+      "X-Amz-Security-Token",
+      "X-Api-Key"
+    ]
+    allow_methods     = ["OPTIONS", "POST", "GET"]
     allow_origins     = ["https://sbuddy.leitnersoft.com"]
     max_age           = 3600
   }
@@ -240,18 +331,51 @@ resource "aws_apigatewayv2_route" "speech" {
   target    = "integrations/${aws_apigatewayv2_integration.speech.id}"
 }
 
+resource "aws_apigatewayv2_integration" "exercise_progress" {
+  api_id                 = aws_apigatewayv2_api.speech.id
+  integration_type       = "AWS_PROXY"
+  integration_method     = "POST"
+  integration_uri        = aws_lambda_function.exercise_progress.invoke_arn
+  payload_format_version = "2.0"
+  timeout_milliseconds   = 29000
+}
+
+resource "aws_apigatewayv2_route" "exercise_progress" {
+  api_id    = aws_apigatewayv2_api.speech.id
+  route_key = "POST /api/exercise-completions"
+  target    = "integrations/${aws_apigatewayv2_integration.exercise_progress.id}"
+}
+
+resource "aws_apigatewayv2_route" "exercise_progress_get" {
+  api_id    = aws_apigatewayv2_api.speech.id
+  route_key = "GET /api/exercise-completions"
+  target    = "integrations/${aws_apigatewayv2_integration.exercise_progress.id}"
+}
+
 resource "aws_apigatewayv2_stage" "speech" {
   api_id      = aws_apigatewayv2_api.speech.id
   name        = "$default"
   auto_deploy = true
 
-  depends_on = [aws_apigatewayv2_route.speech]
+  depends_on = [
+    aws_apigatewayv2_route.speech,
+    aws_apigatewayv2_route.exercise_progress,
+    aws_apigatewayv2_route.exercise_progress_get
+  ]
 }
 
 resource "aws_lambda_permission" "speech_apigw_invoke" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
   function_name = aws_lambda_function.speech.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.speech.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "exercise_progress_apigw_invoke" {
+  statement_id  = "AllowAPIGatewayInvokeExerciseProgress"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.exercise_progress.function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${aws_apigatewayv2_api.speech.execution_arn}/*/*"
 }
