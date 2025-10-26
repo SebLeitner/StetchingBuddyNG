@@ -110,17 +110,6 @@
       line-height: 1.3;
     }
 
-    #instructionBox {
-      min-height: 3rem;
-      padding: 1rem 1.2rem;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.85);
-      color: var(--text-secondary);
-      font-size: 0.95rem;
-      line-height: 1.5;
-      box-shadow: inset 0 0 0 1px rgba(61, 139, 255, 0.12);
-    }
-
     .actions {
       display: grid;
       gap: 0.75rem;
@@ -153,6 +142,20 @@
       background: rgba(231, 76, 60, 0.18);
       color: #a12315;
       box-shadow: inset 0 0 0 1px rgba(231, 76, 60, 0.35);
+    }
+
+    .debug-toggle {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .debug-toggle input {
+      accent-color: var(--accent);
+      width: 1.1rem;
+      height: 1.1rem;
     }
 
     #debugPanel {
@@ -224,6 +227,21 @@
       box-shadow: 0 10px 20px rgba(231, 76, 60, 0.25);
     }
 
+    .progress-container {
+      width: 100%;
+      height: 10px;
+      background: rgba(61, 139, 255, 0.12);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--accent), var(--accent-strong));
+      transition: width 0.25s ease;
+    }
+
     footer {
       text-align: center;
       font-size: 0.8rem;
@@ -255,7 +273,9 @@
     </div>
 
     <div id="display">Bereit?</div>
-    <div id="instructionBox" aria-live="polite"></div>
+    <div class="progress-container" id="repProgressContainer" hidden>
+      <div class="progress-bar" id="repProgressBar" aria-hidden="true"></div>
+    </div>
 
     <div class="actions">
       <button id="startBtn" disabled>Start</button>
@@ -264,6 +284,10 @@
     </div>
 
     <div id="statusMessage" role="status" aria-live="polite" hidden></div>
+    <label class="debug-toggle">
+      <input type="checkbox" id="debugToggle" />
+      Debug-Ausgabe anzeigen
+    </label>
     <div id="debugPanel" hidden aria-live="polite" aria-label="Debugmeldungen">
       <strong>Debug-Ausgaben</strong>
       <pre id="debugLog"></pre>
@@ -304,11 +328,13 @@
     const skipBtn = document.getElementById("skipBtn");
     const stopBtn = document.getElementById("stopBtn");
     const select = document.getElementById("exerciseSelect");
-    const instructionBox = document.getElementById("instructionBox");
     const statusMessage = document.getElementById("statusMessage");
     const debugPanel = document.getElementById("debugPanel");
     const debugLog = document.getElementById("debugLog");
+    const debugToggle = document.getElementById("debugToggle");
     const debugEntries = [];
+    const repProgressContainer = document.getElementById("repProgressContainer");
+    const repProgressBar = document.getElementById("repProgressBar");
     const DEBUG_MAX_ENTRIES = 12;
     const REMOTE_SPEECH_SLOW_THRESHOLD_MS = 1500;
     const REMOTE_RETRY_BASE_DELAY_MS = 4000;
@@ -362,8 +388,7 @@
       while (debugEntries.length > DEBUG_MAX_ENTRIES) {
         debugEntries.shift();
       }
-      debugPanel.hidden = false;
-      debugLog.textContent = debugEntries.join("\n\n");
+      updateDebugVisibility();
     }
 
     function describeError(error) {
@@ -389,12 +414,29 @@
       return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
     }
 
-    function updateInstructionPreview() {
-      if (!exercise) {
-        instructionBox.textContent = "";
-        return;
+    function updateDebugVisibility() {
+      if (!debugPanel || !debugLog) return;
+      const shouldShow = Boolean(debugToggle && debugToggle.checked);
+      debugPanel.hidden = !shouldShow;
+      if (shouldShow) {
+        debugLog.textContent = debugEntries.join("\n\n");
       }
-      instructionBox.textContent = `${exercise.name}. ${exercise.instruction}`;
+    }
+
+    function buildInstructionSpeech(ex) {
+      if (!ex) return "";
+      const name = (ex.name || "").trim();
+      const instruction = (ex.instruction || "").trim();
+      if (!instruction) return name;
+      if (name && instruction.toLowerCase().startsWith(name.toLowerCase())) {
+        return instruction;
+      }
+      return name ? `${name}. ${instruction}` : instruction;
+    }
+
+    updateDebugVisibility();
+    if (debugToggle) {
+      debugToggle.addEventListener("change", updateDebugVisibility);
     }
 
     function base64ToBlob(base64, mimeType = "audio/mpeg") {
@@ -854,13 +896,15 @@
         exercises = data;
         select.innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
         exercise = exercises[0] ?? null;
-        updateInstructionPreview();
+        if (exercise) {
+          const preview = buildInstructionSpeech(exercise);
+          display.textContent = preview || exercise.name;
+        }
         startBtn.disabled = exercises.length === 0;
       })
       .catch(err => {
         console.error("Fehler beim Laden der Übungen", err);
         select.innerHTML = "<option>Fehler beim Laden</option>";
-        instructionBox.textContent = "";
         setStatus("Übungen konnten nicht geladen werden.", "error");
       });
 
@@ -887,6 +931,45 @@
       }
     }
 
+    async function runRepTimer(seconds) {
+      const totalDurationMs = Math.max(0, seconds * 1000);
+      if (totalDurationMs <= 0) {
+        return;
+      }
+      if (!repProgressContainer || !repProgressBar) {
+        await new Promise(r => setTimeout(r, totalDurationMs));
+        return;
+      }
+
+      repProgressContainer.hidden = false;
+      repProgressBar.style.transition = "none";
+      repProgressBar.style.width = "0%";
+      void repProgressBar.offsetWidth; // Force reflow to restart transition
+      repProgressBar.style.transition = "width 0.25s ease";
+
+      const steps = Math.max(1, Math.round(seconds));
+      const finalStepDuration = Math.max(totalDurationMs - (steps - 1) * 1000, 0);
+
+      for (let step = 1; step <= steps; step++) {
+        if (aborted) break;
+        const waitMs = step === steps ? finalStepDuration || 1000 : 1000;
+        if (waitMs > 0) {
+          await new Promise(r => setTimeout(r, waitMs));
+        }
+        if (aborted) break;
+        const progress = Math.min((step / steps) * 100, 100);
+        repProgressBar.style.width = `${progress}%`;
+      }
+
+      if (!aborted) {
+        await new Promise(r => setTimeout(r, 150));
+      }
+
+      repProgressBar.style.transition = "none";
+      repProgressBar.style.width = "0%";
+      repProgressContainer.hidden = true;
+    }
+
     // --- Satz ---
     async function runSet(setNr, withPrep) {
       if (aborted) return;
@@ -900,7 +983,8 @@
 
       for (let i = 1; i <= exercise.duration && !aborted; i++) {
         display.textContent = `Wiederholung ${i}`;
-        await new Promise(r => setTimeout(r, exercise.rep_time * 1000));
+        await runRepTimer(exercise.rep_time);
+        if (aborted) break;
         await speak(i.toString());
       }
 
@@ -920,11 +1004,21 @@
         setStatus("");
       }
 
-      const instructionText = `${exercise.name}. ${exercise.instruction}`;
-      display.textContent = instructionText;
-      instructionBox.textContent = instructionText;
+      if (repProgressContainer && repProgressBar) {
+        repProgressBar.style.width = "0%";
+        repProgressContainer.hidden = true;
+      }
+
+      const instructionSpeech = buildInstructionSpeech(exercise);
+      if (instructionSpeech) {
+        display.textContent = instructionSpeech;
+      } else if (exercise && exercise.name) {
+        display.textContent = exercise.name;
+      }
       await speak(`Pro Übungsdurchführung sind ${exercise.rep_time} Sekunden geplant.`);
-      await speak(instructionText);
+      if (instructionSpeech) {
+        await speak(instructionSpeech);
+      }
 
       for (let set = 1; set <= exercise.sets && !aborted; set++) {
         const withPrep = (set === 1);
@@ -957,7 +1051,10 @@
     select.addEventListener("change", () => {
       const id = select.value;
       exercise = exercises.find(e => e.id === id) ?? null;
-      updateInstructionPreview();
+      if (exercise) {
+        const preview = buildInstructionSpeech(exercise);
+        display.textContent = preview || exercise.name;
+      }
     });
 
     startBtn.addEventListener("click", async () => {
@@ -1000,6 +1097,11 @@
       stopBtn.disabled = true;
       remoteFailureNotified = false;
       setStatus("Training gestoppt.", "info");
+      if (repProgressContainer && repProgressBar) {
+        repProgressBar.style.transition = "none";
+        repProgressBar.style.width = "0%";
+        repProgressContainer.hidden = true;
+      }
     });
 
     if ("serviceWorker" in navigator) {
