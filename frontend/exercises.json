@@ -42,17 +42,18 @@
   },
   {
     "id": "schraegerbauch_link",
-    "name": "Schräger Bauch Links",
-    "instruction": "Lege Dich auf den Boden flach. Versuche mit dem linken Arm nach nach schräg zu greifen und komme zur Ausgangsposition zurück.",
+    "name": "Schräger Bauch links",
+    "instruction": "Lege Dich auf den Boden flach. Versuche mit dem linken Arm nach schräg rechts zu greifen und komme zur Ausgangsposition zurück.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 6,
     "sets": 3,
     "rest_time": 30
   },
+  {
     "id": "schraegerbauch_rechts",
-    "name": "Schräger Bauch Links",
-    "instruction": "Lege Dich auf den Boden flach. Versuche mit dem rechten Arm nach nach schräg zu greifen und komme zur Ausgangsposition zurück.",
+    "name": "Schräger Bauch rechts",
+    "instruction": "Lege Dich auf den Boden flach. Versuche mit dem rechten Arm nach schräg links zu greifen und komme zur Ausgangsposition zurück.",
     "prep_time": 10,
     "duration": 15,
     "rep_time": 6,
@@ -60,3 +61,5 @@
     "rest_time": 30
   }
 ]
+
+

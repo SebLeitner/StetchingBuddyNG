@@ -76,7 +76,19 @@
 
     .input-group {
       display: grid;
-      gap: 0.45rem;
+      gap: 0.6rem;
+    }
+
+    .group-label {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text-primary);
+    }
+
+    .group-hint {
+      margin: 0;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
     }
 
     select {
@@ -144,48 +156,133 @@
       box-shadow: inset 0 0 0 1px rgba(231, 76, 60, 0.35);
     }
 
-    .debug-toggle {
+    .segmented-control {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 0.4rem;
+      padding: 0.35rem;
+      border-radius: 999px;
+      background: rgba(61, 139, 255, 0.08);
+      border: 1px solid rgba(61, 139, 255, 0.15);
+    }
+
+    .segmented-control input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .segmented-control label {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      padding: 0.55rem 0.75rem;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: transparent;
+    }
+
+    .segmented-control label::before {
+      content: attr(data-icon);
+      font-size: 1rem;
+    }
+
+    .segmented-control label:hover {
+      color: var(--accent-strong);
+    }
+
+    .segmented-control input:checked + label {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(61, 139, 255, 0.25);
+    }
+
+    .advanced-card {
+      display: grid;
+      gap: 0.9rem;
+      padding: 1rem 1.2rem;
+      border-radius: 20px;
+      background: rgba(26, 42, 58, 0.06);
+      border: 1px solid rgba(61, 139, 255, 0.12);
+    }
+
+    .advanced-header {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-      font-size: 0.85rem;
-      color: var(--text-secondary);
+      justify-content: space-between;
+      gap: 1rem;
     }
 
-    .debug-toggle input {
-      accent-color: var(--accent);
-      width: 1.1rem;
-      height: 1.1rem;
-    }
-
-    #debugPanel {
-      padding: 0.85rem 1rem;
-      border-radius: 14px;
-      background: rgba(26, 42, 58, 0.08);
-      color: var(--text-secondary);
-      font-size: 0.85rem;
-      line-height: 1.5;
-      display: grid;
-      gap: 0.4rem;
-      box-shadow: inset 0 0 0 1px rgba(26, 42, 58, 0.12);
-    }
-
-    #debugPanel strong {
-      font-size: 0.9rem;
+    .advanced-title {
+      margin: 0;
+      font-weight: 600;
+      font-size: 0.95rem;
       color: var(--text-primary);
     }
 
-    #debugLog {
-      font-family: "SFMono-Regular", "Roboto Mono", Menlo, Monaco, Consolas, monospace;
-      white-space: pre-wrap;
-      word-break: break-word;
+    .advanced-subtitle {
+      margin: 0.2rem 0 0;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .switch {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 52px;
+      height: 30px;
+      border-radius: 999px;
+    }
+
+    .switch input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
       margin: 0;
-      padding: 0.75rem;
-      border-radius: 10px;
-      background: rgba(255, 255, 255, 0.65);
-      box-shadow: inset 0 0 0 1px rgba(61, 139, 255, 0.12);
-      max-height: 180px;
-      overflow-y: auto;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .switch-track {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background: rgba(61, 139, 255, 0.25);
+      border-radius: inherit;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: inset 0 1px 2px rgba(26, 42, 58, 0.12);
+      pointer-events: none;
+    }
+
+    .switch-thumb {
+      position: absolute;
+      top: 50%;
+      left: 6px;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 4px 10px rgba(26, 42, 58, 0.25);
+      transform: translate3d(0, -50%, 0);
+      transition: transform 0.2s ease;
+    }
+
+    .switch input:checked + .switch-track {
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      box-shadow: 0 12px 20px rgba(61, 139, 255, 0.35);
+    }
+
+    .switch input:checked + .switch-track .switch-thumb {
+      transform: translate3d(22px, -50%, 0);
     }
 
     button {
@@ -272,6 +369,17 @@
       <select id="countdownStepSelect"></select>
     </div>
 
+    <div class="input-group">
+      <span class="group-label">Sprachausgabe</span>
+      <div class="segmented-control" role="radiogroup" aria-label="Sprachausgabe wählen">
+        <input type="radio" id="voiceModeAuto" name="voiceMode" value="auto" checked />
+        <label for="voiceModeAuto" data-icon="☁️">Online &amp; Fallback</label>
+        <input type="radio" id="voiceModeLocal" name="voiceMode" value="local" />
+        <label for="voiceModeLocal" data-icon="🗣️">Nur lokal</label>
+      </div>
+      <p class="group-hint" id="voiceModeHint"></p>
+    </div>
+
     <div id="display">Bereit?</div>
     <div class="progress-container" id="repProgressContainer" hidden>
       <div class="progress-bar" id="repProgressBar" aria-hidden="true"></div>
@@ -284,13 +392,17 @@
     </div>
 
     <div id="statusMessage" role="status" aria-live="polite" hidden></div>
-    <label class="debug-toggle">
-      <input type="checkbox" id="debugToggle" />
-      Debug-Ausgabe anzeigen
-    </label>
-    <div id="debugPanel" hidden aria-live="polite" aria-label="Debugmeldungen">
-      <strong>Debug-Ausgaben</strong>
-      <pre id="debugLog"></pre>
+
+    <div class="advanced-card">
+      <div class="advanced-header">
+        <p class="advanced-title">DEBUG-MODUS</p>
+        <label class="switch" for="debugToggle">
+          <input type="checkbox" id="debugToggle" aria-label="Debug-Modus umschalten" />
+          <span class="switch-track">
+            <span class="switch-thumb"></span>
+          </span>
+        </label>
+      </div>
     </div>
 
     <footer>
@@ -306,6 +418,7 @@
     const COUNTDOWN_MAX_MS = 1000;
     const COUNTDOWN_STEP_INCREMENT_MS = 100;
     let countdownStepMs = 200;
+    let voiceMode = "auto";
     let exercises = [];
     let exercise = null;
     let skipRequested = false;
@@ -332,6 +445,8 @@
     const stopBtn = document.getElementById("stopBtn");
     const select = document.getElementById("exerciseSelect");
     const statusMessage = document.getElementById("statusMessage");
+    const voiceModeRadios = Array.from(document.querySelectorAll('input[name="voiceMode"]'));
+    const voiceModeHint = document.getElementById("voiceModeHint");
     const debugPanel = document.getElementById("debugPanel");
     const debugLog = document.getElementById("debugLog");
     const debugToggle = document.getElementById("debugToggle");
@@ -426,6 +541,14 @@
       }
     }
 
+    function updateVoiceModeHint() {
+      if (!voiceModeHint) return;
+      voiceModeHint.textContent =
+        voiceMode === "auto"
+          ? "Nutze bevorzugt die Online-Stimme. Bei Ausfällen springt die lokale Stimme ein."
+          : "Die Browser-Stimme übernimmt alle Ansagen – funktioniert auch offline.";
+    }
+
     function buildInstructionSpeech(ex) {
       if (!ex) return "";
       const name = (ex.name || "").trim();
@@ -441,6 +564,33 @@
     if (debugToggle) {
       debugToggle.addEventListener("change", updateDebugVisibility);
     }
+
+    const initialVoiceMode = voiceModeRadios.find(radio => radio.checked)?.value;
+    if (initialVoiceMode) {
+      voiceMode = initialVoiceMode;
+    }
+
+    updateVoiceModeHint();
+    voiceModeRadios.forEach(radio => {
+      radio.addEventListener("change", () => {
+        if (!radio.checked) return;
+        voiceMode = radio.value;
+        if (voiceMode !== "auto") {
+          remoteFailureNotified = false;
+          remoteBackoffActive = false;
+          remoteFailureCount = 0;
+          remoteRetryAvailableAt = 0;
+          lastRemoteBackoffLogAt = 0;
+          setStatus("");
+        }
+        appendDebug(
+          voiceMode === "auto"
+            ? "Sprachausgabe: Online-Modus mit Fallback aktiviert."
+            : "Sprachausgabe: Lokaler Modus aktiviert."
+        );
+        updateVoiceModeHint();
+      });
+    });
 
     function base64ToBlob(base64, mimeType = "audio/mpeg") {
       const binary = atob(base64);
@@ -881,9 +1031,10 @@
 
       const attemptStart = now();
       const truncatedText = truncateTextForDebug(text);
-      const canUseRemote = !remoteBackoffActive || now() >= remoteRetryAvailableAt;
+      const preferRemote = voiceMode === "auto";
+      const canUseRemote = preferRemote && (!remoteBackoffActive || now() >= remoteRetryAvailableAt);
 
-      if (canUseRemote) {
+      if (preferRemote && canUseRemote) {
         try {
           await playRemoteAudio(text);
           const duration = Math.round(now() - attemptStart);
@@ -926,7 +1077,7 @@
             `Online-Sprachsynthese fehlgeschlagen nach ${duration} ms.`,
             details
           );
-          if (!remoteFailureNotified) {
+          if (preferRemote && !remoteFailureNotified) {
             setStatus(
               "Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.",
               "warn"
@@ -958,20 +1109,36 @@
         }
       }
 
-      if (!remoteFailureNotified) {
-        setStatus("Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.", "warn");
-        remoteFailureNotified = true;
-      }
-
-      if (remoteBackoffActive) {
-        const remainingMs = Math.max(remoteRetryAvailableAt - now(), 0);
-        if (!lastRemoteBackoffLogAt || now() - lastRemoteBackoffLogAt >= REMOTE_BACKOFF_LOG_THROTTLE_MS) {
-          const secondsRemaining = Math.max(1, Math.ceil(remainingMs / 1000));
-          const logMessage = `Überspringe Online-Sprachsynthese (noch ${secondsRemaining} s Auszeit).`;
-          const details = truncatedText ? `Text: "${truncatedText}"` : "";
-          appendDebug(logMessage, details);
-          lastRemoteBackoffLogAt = now();
+      if (preferRemote) {
+        if (!remoteFailureNotified) {
+          setStatus(
+            "Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.",
+            "warn"
+          );
+          remoteFailureNotified = true;
         }
+
+        if (remoteBackoffActive) {
+          const remainingMs = Math.max(remoteRetryAvailableAt - now(), 0);
+          if (
+            !lastRemoteBackoffLogAt ||
+            now() - lastRemoteBackoffLogAt >= REMOTE_BACKOFF_LOG_THROTTLE_MS
+          ) {
+            const secondsRemaining = Math.max(1, Math.ceil(remainingMs / 1000));
+            const logMessage = `Überspringe Online-Sprachsynthese (noch ${secondsRemaining} s Auszeit).`;
+            const details = truncatedText ? `Text: "${truncatedText}"` : "";
+            appendDebug(logMessage, details);
+            lastRemoteBackoffLogAt = now();
+          }
+        }
+      } else {
+        if (remoteFailureNotified) {
+          setStatus("");
+          remoteFailureNotified = false;
+        }
+        remoteBackoffActive = false;
+        remoteRetryAvailableAt = 0;
+        lastRemoteBackoffLogAt = 0;
       }
 
       skipRequested = false;

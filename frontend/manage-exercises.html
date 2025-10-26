@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stretch Coach – Übungen verwalten</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg-gradient: linear-gradient(135deg, #7f7fd5, #86a8e7, #91eae4);
+        --surface: rgba(255, 255, 255, 0.9);
+        --surface-strong: rgba(255, 255, 255, 0.95);
+        --text-primary: #1a2a3a;
+        --text-secondary: #516170;
+        --accent: #3d8bff;
+        --accent-strong: #2f6ad8;
+        --accent-warn: #f39c12;
+        --accent-stop: #e74c3c;
+        --radius-large: 24px;
+        --radius-medium: 16px;
+        --shadow: 0 20px 40px rgba(26, 42, 58, 0.18);
+        --shadow-soft: 0 12px 24px rgba(26, 42, 58, 0.14);
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont,
+          "Helvetica Neue", Arial, sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        background: var(--bg-gradient);
+        color: var(--text-primary);
+        padding: clamp(1.4rem, 3vw, 2rem);
+        gap: clamp(1.4rem, 3vw, 2.4rem);
+      }
+
+      header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        padding: clamp(1.2rem, 2.4vw, 1.8rem);
+        background: var(--surface);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-large);
+        box-shadow: var(--shadow);
+        gap: 1rem;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 2.4rem);
+        letter-spacing: -0.02em;
+      }
+
+      nav a {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.65rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(61, 139, 255, 0.12);
+        color: var(--accent-strong);
+        text-decoration: none;
+        font-weight: 600;
+        transition: background 0.2s ease, transform 0.2s ease;
+      }
+
+      nav a:hover,
+      nav a:focus-visible {
+        background: rgba(61, 139, 255, 0.22);
+        transform: translateY(-1px);
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: clamp(1.4rem, 3vw, 2rem);
+      }
+
+      .toolbar,
+      .info-card {
+        background: var(--surface);
+        backdrop-filter: blur(10px);
+        border-radius: var(--radius-large);
+        box-shadow: var(--shadow);
+        padding: clamp(1.4rem, 3vw, 2rem);
+        display: grid;
+        gap: clamp(1rem, 2vw, 1.4rem);
+      }
+
+      .toolbar {
+        align-items: start;
+      }
+
+      .toolbar-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+
+      button,
+      input,
+      textarea {
+        font-family: inherit;
+      }
+
+      button {
+        padding: 0.75rem 1.2rem;
+        border-radius: 999px;
+        border: none;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+      }
+
+      button.primary {
+        background: var(--accent);
+        color: white;
+        box-shadow: 0 12px 20px rgba(61, 139, 255, 0.25);
+      }
+
+      button.secondary {
+        background: rgba(61, 139, 255, 0.12);
+        color: var(--accent-strong);
+      }
+
+      button.danger {
+        background: rgba(231, 76, 60, 0.1);
+        color: var(--accent-stop);
+      }
+
+      button:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(61, 139, 255, 0.35);
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+      }
+
+      .search-filter {
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      .search-filter label {
+        font-weight: 600;
+        color: var(--text-secondary);
+      }
+
+      .search-filter input {
+        width: min(320px, 100%);
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-medium);
+        border: 1px solid rgba(61, 139, 255, 0.18);
+        background: rgba(255, 255, 255, 0.85);
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .search-filter input:focus-visible {
+        border-color: rgba(61, 139, 255, 0.5);
+        box-shadow: 0 0 0 4px rgba(61, 139, 255, 0.2);
+        outline: none;
+      }
+
+      #exerciseContainer {
+        display: grid;
+        gap: clamp(1.2rem, 2.4vw, 1.6rem);
+      }
+
+      .exercise-segment {
+        background: var(--surface-strong);
+        border-radius: var(--radius-large);
+        box-shadow: var(--shadow-soft);
+        padding: clamp(1.2rem, 2.4vw, 1.6rem);
+        display: grid;
+        gap: 1rem;
+      }
+
+      .segment-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
+      .segment-header h2 {
+        margin: 0;
+        font-size: 1.2rem;
+      }
+
+      .field-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      @media (min-width: 680px) {
+        .field-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .field-grid .full-width {
+          grid-column: 1 / -1;
+        }
+      }
+
+      label {
+        font-weight: 600;
+        display: block;
+        margin-bottom: 0.35rem;
+        color: var(--text-secondary);
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: var(--radius-medium);
+        border: 1px solid rgba(61, 139, 255, 0.18);
+        background: rgba(255, 255, 255, 0.9);
+        color: var(--text-primary);
+        font-size: 1rem;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      textarea {
+        resize: vertical;
+        min-height: 120px;
+      }
+
+      input:focus-visible,
+      textarea:focus-visible {
+        outline: none;
+        border-color: rgba(61, 139, 255, 0.55);
+        box-shadow: 0 0 0 4px rgba(61, 139, 255, 0.2);
+      }
+
+      .validation-message {
+        font-size: 0.85rem;
+        color: var(--accent-stop);
+        margin-top: 0.3rem;
+      }
+
+      details.instructions summary {
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--accent-strong);
+        margin-bottom: 0.4rem;
+      }
+
+      .status-area {
+        min-height: 2.2rem;
+        padding: 0.9rem 1.2rem;
+        border-radius: var(--radius-medium);
+        background: rgba(61, 139, 255, 0.1);
+        color: var(--text-secondary);
+        line-height: 1.4;
+      }
+
+      .status-area[data-type="error"] {
+        background: rgba(231, 76, 60, 0.14);
+        color: #a12315;
+      }
+
+      .status-area[data-type="warn"] {
+        background: rgba(243, 156, 18, 0.18);
+        color: #8c5a05;
+      }
+
+      .status-area[data-type="success"] {
+        background: rgba(46, 204, 113, 0.18);
+        color: #1f6f3a;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Übungen verwalten</h1>
+      <nav>
+        <a href="./index.html" aria-label="Zurück zur Startseite">← Zurück</a>
+      </nav>
+    </header>
+
+    <main>
+      <section class="toolbar">
+        <div class="toolbar-actions">
+          <button type="button" class="primary" id="addExerciseBtn">
+            Neue Übung hinzufügen
+          </button>
+          <button type="button" class="secondary" id="downloadBtn">
+            JSON herunterladen
+          </button>
+        </div>
+        <div class="search-filter">
+          <label for="searchInput">Suche (Name oder Anleitung)</label>
+          <input
+            id="searchInput"
+            type="search"
+            placeholder="Tippe, um Einträge zu filtern…"
+            autocomplete="off"
+          />
+        </div>
+        <div id="statusArea" class="status-area" role="status"></div>
+      </section>
+
+      <section id="exerciseContainer"></section>
+
+      <aside class="info-card">
+        <h2>Hinweis zum Deployment</h2>
+        <p>
+          Nach der Anpassung kannst du die heruntergeladene
+          <code>exercises.json</code> im Ordner <code>frontend/</code> ersetzen
+          und in das Repository committen. Bei Bedarf lassen sich Änderungen
+          über Pull Requests überprüfen und veröffentlichen.
+        </p>
+        <p>
+          Nutze die Suchfunktion, um schnell bestimmte Übungen zu finden, und
+          klappe lange Anleitungen bei Bedarf über die Abschnittsköpfe ein.
+        </p>
+      </aside>
+    </main>
+
+    <template id="exerciseTemplate">
+      <article class="exercise-segment" data-visible="true">
+        <div class="segment-header">
+          <h2>Übung</h2>
+          <button type="button" class="danger delete-btn">Übung löschen</button>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label>Id *</label>
+            <input name="id" required />
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Name *</label>
+            <input name="name" required />
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field full-width">
+            <label>Anleitung *</label>
+            <details class="instructions" open>
+              <summary>Anleitung anzeigen/ausblenden</summary>
+              <textarea name="instruction" required></textarea>
+            </details>
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Vorbereitungszeit (Sek.)</label>
+            <input name="prep_time" type="number" min="0" step="1" />
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Dauer (Sek.)</label>
+            <input name="duration" type="number" min="0" step="1" />
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Wiederholungsdauer (Sek.)</label>
+            <input name="rep_time" type="number" min="0" step="1" />
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Sätze</label>
+            <input name="sets" type="number" min="0" step="1" />
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Pause (Sek.)</label>
+            <input name="rest_time" type="number" min="0" step="1" />
+            <div class="validation-message hidden"></div>
+          </div>
+        </div>
+      </article>
+    </template>
+
+    <script>
+      const exerciseContainer = document.getElementById("exerciseContainer");
+      const template = document.getElementById("exerciseTemplate");
+      const addBtn = document.getElementById("addExerciseBtn");
+      const downloadBtn = document.getElementById("downloadBtn");
+      const searchInput = document.getElementById("searchInput");
+      const statusArea = document.getElementById("statusArea");
+
+      const numberFields = [
+        "prep_time",
+        "duration",
+        "rep_time",
+        "sets",
+        "rest_time",
+      ];
+
+      const defaultExercise = () => ({
+        id: "",
+        name: "",
+        instruction: "",
+        prep_time: "",
+        duration: "",
+        rep_time: "",
+        sets: "",
+        rest_time: "",
+      });
+
+      const setStatus = (message, type = "info") => {
+        statusArea.textContent = message;
+        statusArea.dataset.type = type;
+      };
+
+      const validateField = (input) => {
+        const value = input.value.trim();
+        const field = input.closest(".field");
+        const messageEl = field?.querySelector(".validation-message");
+
+        let error = "";
+
+        if (input.hasAttribute("required") && !value) {
+          error = "Pflichtfeld ausfüllen.";
+        } else if (input.type === "number" && value !== "") {
+          const numberValue = Number(value);
+          if (Number.isNaN(numberValue)) {
+            error = "Bitte eine gültige Zahl eingeben.";
+          } else if (numberValue < 0) {
+            error = "Der Wert darf nicht negativ sein.";
+          }
+        }
+
+        if (messageEl) {
+          if (error) {
+            messageEl.textContent = error;
+            messageEl.classList.remove("hidden");
+            input.setAttribute("aria-invalid", "true");
+          } else {
+            messageEl.textContent = "";
+            messageEl.classList.add("hidden");
+            input.removeAttribute("aria-invalid");
+          }
+        }
+
+        return !error;
+      };
+
+      const bindFieldValidation = (segment) => {
+        const inputs = segment.querySelectorAll("input, textarea");
+        inputs.forEach((input) => {
+          input.addEventListener("blur", () => validateField(input));
+          input.addEventListener("input", () => {
+            if (input.getAttribute("aria-invalid") === "true") {
+              validateField(input);
+            }
+            if (input.name === "name") {
+              const heading = segment.querySelector(".segment-header h2");
+              heading.textContent = input.value
+                ? `Übung: ${input.value}`
+                : "Übung";
+            }
+          });
+        });
+      };
+
+      const fillSegment = (segment, data) => {
+        const inputs = segment.querySelectorAll("input, textarea");
+        inputs.forEach((input) => {
+          const value = data[input.name];
+          if (value !== undefined && value !== null) {
+            input.value = value;
+          }
+        });
+
+        const nameInput = segment.querySelector('input[name="name"]');
+        if (nameInput && nameInput.value) {
+          segment.querySelector(".segment-header h2").textContent =
+            "Übung: " + nameInput.value;
+        }
+      };
+
+      const addExerciseSegment = (data = defaultExercise()) => {
+        const fragment = template.content.cloneNode(true);
+        const segment = fragment.querySelector(".exercise-segment");
+        bindFieldValidation(segment);
+
+        const deleteBtn = segment.querySelector(".delete-btn");
+        deleteBtn.addEventListener("click", () => {
+          segment.remove();
+          setStatus("Übung entfernt. Vergiss nicht zu speichern.", "info");
+          filterSegments(searchInput.value);
+        });
+
+        fillSegment(segment, data);
+        exerciseContainer.appendChild(fragment);
+        filterSegments(searchInput.value);
+      };
+
+      const filterSegments = (searchTerm) => {
+        const lower = searchTerm.trim().toLowerCase();
+        const segments = exerciseContainer.querySelectorAll(
+          ".exercise-segment"
+        );
+        segments.forEach((segment) => {
+          const name = segment
+            .querySelector('input[name="name"]')
+            .value.toLowerCase();
+          const instruction = segment
+            .querySelector('textarea[name="instruction"]')
+            .value.toLowerCase();
+          const matches =
+            !lower || name.includes(lower) || instruction.includes(lower);
+          segment.dataset.visible = matches ? "true" : "false";
+          segment.style.display = matches ? "grid" : "none";
+        });
+      };
+
+      const gatherExercises = () => {
+        const segments = Array.from(
+          exerciseContainer.querySelectorAll(".exercise-segment")
+        );
+        if (!segments.length) {
+          throw new Error("Keine Übungen vorhanden. Bitte erst welche hinzufügen.");
+        }
+
+        const data = [];
+        const errors = [];
+
+        segments.forEach((segment, index) => {
+          const inputs = segment.querySelectorAll("input, textarea");
+          const entry = {};
+          let isValid = true;
+
+          inputs.forEach((input) => {
+            const ok = validateField(input);
+            if (!ok) {
+              isValid = false;
+            }
+            let value = input.value.trim();
+            if (numberFields.includes(input.name)) {
+              value = value === "" ? "" : Number(value);
+            }
+            entry[input.name] = value;
+          });
+
+          if (!isValid) {
+            errors.push(`Bitte Eingaben in Übung ${index + 1} korrigieren.`);
+          }
+
+          data.push(entry);
+        });
+
+        if (errors.length) {
+          throw new Error(errors.join(" "));
+        }
+
+        const normalized = data.map((entry) => {
+          const result = { ...entry };
+          numberFields.forEach((field) => {
+            if (result[field] === "") {
+              delete result[field];
+            }
+          });
+          return result;
+        });
+
+        return normalized;
+      };
+
+      const downloadJson = (entries) => {
+        const blob = new Blob([JSON.stringify(entries, null, 2)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = Object.assign(document.createElement("a"), {
+          href: url,
+          download: "exercises.json",
+        });
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      };
+
+      const loadExercises = async () => {
+        try {
+          setStatus("Lade vorhandene Daten…");
+          const response = await fetch("./exercises.json");
+          if (!response.ok) {
+            throw new Error(
+              `Fehler beim Laden der Daten (Status ${response.status}).`
+            );
+          }
+          const data = await response.json();
+          const list = Array.isArray(data) ? data : [];
+          exerciseContainer.innerHTML = "";
+          if (!list.length) {
+            addExerciseSegment();
+            setStatus(
+              "Es wurden keine Übungen gefunden. Du kannst neue hinzufügen.",
+              "warn"
+            );
+          } else {
+            list.forEach((entry) => addExerciseSegment(entry));
+            setStatus(`Es wurden ${list.length} Übungen geladen.`, "success");
+          }
+          filterSegments(searchInput.value);
+        } catch (error) {
+          console.error(error);
+          setStatus(
+            "Übungen konnten nicht geladen werden. Du kannst trotzdem neue hinzufügen.",
+            "error"
+          );
+          addExerciseSegment();
+        }
+      };
+
+      addBtn.addEventListener("click", () => {
+        addExerciseSegment();
+        setStatus("Neue Übung hinzugefügt.", "success");
+      });
+
+      downloadBtn.addEventListener("click", () => {
+        try {
+          const exercises = gatherExercises();
+          downloadJson(exercises);
+          setStatus(
+            `${exercises.length} Übungen wurden exportiert und heruntergeladen.`,
+            "success"
+          );
+        } catch (error) {
+          setStatus(error.message, "error");
+        }
+      });
+
+      searchInput.addEventListener("input", (event) => {
+        filterSegments(event.target.value);
+      });
+
+      loadExercises();
+    </script>
+  </body>
+</html>
