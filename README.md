@@ -30,13 +30,17 @@ Die Lambda-Funktion akzeptiert auch JSON-Antworten von Polly-Tasks (z. B. `audio
 
 - Die Funktion `speak()` in `frontend/index.html` ruft den Speech-Endpunkt auf, lädt das MP3 als Blob und spielt es über ein `Audio`-Objekt ab.
 - Während der Wiedergabe sind `skip` und `stop` aktiv, `AbortController` bricht laufende Requests ab. Bei Netzwerk- oder AWS-Fehlern erfolgt ein Fallback auf die lokale `speechSynthesis` API.
-- Über das optionale globale Objekt `window.STRETCH_COACH_CONFIG` können `speechApiUrl`, `speechApiBaseUrl` oder `voiceId` gesetzt werden, z. B.:
-  ```html
-  <script>
-    window.STRETCH_COACH_CONFIG = { speechApiUrl: "https://api.meine-domain.com/speak", voiceId: "Vicki" };
-  </script>
+- Die produktive Instanz bindet `frontend/config.production.js` ein. Darin wird `window.STRETCH_COACH_CONFIG` bereits mit den Live-Werten befüllt:
+  ```js
+  window.STRETCH_COACH_CONFIG = {
+    appUrl: "https://sbuddy.leitnersoft.com",
+    bucketName: "sbuddy.leitnersoft.com",
+    cloudFrontDomain: "d1spztj11put9r.cloudfront.net",
+    speechApiUrl: "https://hr9yi4qsmg.execute-api.us-east-1.amazonaws.com/api/speak",
+    speechLambdaArn: "arn:aws:lambda:us-east-1:140023375269:function:stretch-coach-speech",
+  };
   ```
-  Ohne Konfiguration wird `/api/speak` relativ zur App verwendet.
+  Lokale Tests können weiterhin ein eigenes `window.STRETCH_COACH_CONFIG` setzen; es überschreibt die Werte aus der Produktionsdatei.
 
 ## Infrastruktur & Deployment
 
