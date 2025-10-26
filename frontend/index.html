@@ -291,6 +291,10 @@
     let currentAudioUrl = null;
     let currentFetchController = null;
     let remoteFailureNotified = false;
+    let remoteBackoffActive = false;
+    let remoteRetryAvailableAt = 0;
+    let remoteFailureCount = 0;
+    let lastRemoteBackoffLogAt = 0;
     let audioUnlockPromise = null;
     let sharedAudioElement = null;
     let audioUnlocked = false;
@@ -307,6 +311,9 @@
     const debugEntries = [];
     const DEBUG_MAX_ENTRIES = 12;
     const REMOTE_SPEECH_SLOW_THRESHOLD_MS = 1500;
+    const REMOTE_RETRY_BASE_DELAY_MS = 4000;
+    const REMOTE_RETRY_MAX_DELAY_MS = 60000;
+    const REMOTE_BACKOFF_LOG_THROTTLE_MS = 3000;
     const SILENT_AUDIO_SRC =
       "data:audio/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDFtcDQyaXNvbWF2YzEAAAAIZnJlZQAAAcNtZGF0AAAAAA==";
     const now = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
@@ -742,59 +749,102 @@
 
       const attemptStart = now();
       const truncatedText = truncateTextForDebug(text);
+      const canUseRemote = !remoteBackoffActive || now() >= remoteRetryAvailableAt;
 
-      try {
-        await playRemoteAudio(text);
-        const duration = Math.round(now() - attemptStart);
-        if (duration > REMOTE_SPEECH_SLOW_THRESHOLD_MS && truncatedText) {
+      if (canUseRemote) {
+        try {
+          await playRemoteAudio(text);
+          const duration = Math.round(now() - attemptStart);
+          if (duration > REMOTE_SPEECH_SLOW_THRESHOLD_MS && truncatedText) {
+            appendDebug(
+              `Online-Sprachsynthese benötigte ${duration} ms für eine Antwort.`,
+              `Text: "${truncatedText}"`
+            );
+          }
+          if (remoteFailureNotified) {
+            if (truncatedText) {
+              appendDebug(
+                "Online-Sprachsynthese wieder verfügbar.",
+                `Text: "${truncatedText}"`
+              );
+            } else {
+              appendDebug("Online-Sprachsynthese wieder verfügbar.");
+            }
+            setStatus("");
+            remoteFailureNotified = false;
+          }
+          remoteFailureCount = 0;
+          remoteBackoffActive = false;
+          remoteRetryAvailableAt = 0;
+          lastRemoteBackoffLogAt = 0;
+          return;
+        } catch (error) {
+          if (aborted || skipRequested || (error && error.name === "AbortError")) {
+            return;
+          }
+          const duration = Math.round(now() - attemptStart);
+          console.warn("Speech API nicht erreichbar, nutze Fallback.", error);
+          const details = [
+            `Grund: ${describeError(error)}`,
+            truncatedText ? `Text: "${truncatedText}"` : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
           appendDebug(
-            `Online-Sprachsynthese benötigte ${duration} ms für eine Antwort.`,
-            `Text: "${truncatedText}"`
+            `Online-Sprachsynthese fehlgeschlagen nach ${duration} ms.`,
+            details
           );
-        }
-        if (remoteFailureNotified) {
+          if (!remoteFailureNotified) {
+            setStatus(
+              "Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.",
+              "warn"
+            );
+            remoteFailureNotified = true;
+          }
+          remoteFailureCount = Math.min(remoteFailureCount + 1, 6);
+          const backoffExponent = Math.max(remoteFailureCount - 1, 0);
+          const backoffDelay = Math.min(
+            REMOTE_RETRY_BASE_DELAY_MS * Math.pow(2, backoffExponent),
+            REMOTE_RETRY_MAX_DELAY_MS
+          );
+          remoteRetryAvailableAt = now() + backoffDelay;
+          remoteBackoffActive = true;
+          lastRemoteBackoffLogAt = 0;
+          const backoffSeconds = Math.max(1, Math.round(backoffDelay / 1000));
+          appendDebug(`Online-Sprachsynthese pausiert für ${backoffSeconds} s.`);
+          skipRequested = false;
           if (truncatedText) {
             appendDebug(
-              "Online-Sprachsynthese wieder verfügbar.",
+              "Wechsle auf lokale Sprachsynthese.",
               `Text: "${truncatedText}"`
             );
           } else {
-            appendDebug("Online-Sprachsynthese wieder verfügbar.");
+            appendDebug("Wechsle auf lokale Sprachsynthese.");
           }
-          setStatus("");
-          remoteFailureNotified = false;
-        }
-      } catch (error) {
-        if (aborted || skipRequested || (error && error.name === "AbortError")) {
+          await speakWithLocalSynthesis(text);
           return;
         }
-        const duration = Math.round(now() - attemptStart);
-        console.warn("Speech API nicht erreichbar, nutze Fallback.", error);
-        const details = [
-          `Grund: ${describeError(error)}`,
-          truncatedText ? `Text: "${truncatedText}"` : "",
-        ]
-          .filter(Boolean)
-          .join("\n");
-        appendDebug(
-          `Online-Sprachsynthese fehlgeschlagen nach ${duration} ms.`,
-          details
-        );
-        if (!remoteFailureNotified) {
-          setStatus("Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.", "warn");
-          remoteFailureNotified = true;
-        }
-        skipRequested = false;
-        if (truncatedText) {
-          appendDebug(
-            "Wechsle auf lokale Sprachsynthese.",
-            `Text: "${truncatedText}"`
-          );
-        } else {
-          appendDebug("Wechsle auf lokale Sprachsynthese.");
-        }
-        await speakWithLocalSynthesis(text);
       }
+
+      if (!remoteFailureNotified) {
+        setStatus("Online-Sprachsynthese nicht verfügbar – lokale Stimme wird genutzt.", "warn");
+        remoteFailureNotified = true;
+      }
+
+      if (remoteBackoffActive) {
+        const remainingMs = Math.max(remoteRetryAvailableAt - now(), 0);
+        if (!lastRemoteBackoffLogAt || now() - lastRemoteBackoffLogAt >= REMOTE_BACKOFF_LOG_THROTTLE_MS) {
+          const secondsRemaining = Math.max(1, Math.ceil(remainingMs / 1000));
+          const logMessage = `Überspringe Online-Sprachsynthese (noch ${secondsRemaining} s Auszeit).`;
+          const details = truncatedText ? `Text: "${truncatedText}"` : "";
+          appendDebug(logMessage, details);
+          lastRemoteBackoffLogAt = now();
+        }
+      }
+
+      skipRequested = false;
+      await speakWithLocalSynthesis(text);
+      return;
     }
 
     // --- Übungen laden ---
