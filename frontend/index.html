@@ -1392,10 +1392,14 @@
       }
     }
 
-    async function callSpeechApi(text, { signal } = {}) {
+    async function callSpeechApi(text, { signal, voiceId } = {}) {
       const payload = { text, language: "de-DE" };
-      if (preferredVoice) {
-        payload.voice = preferredVoice;
+      const requestedVoice =
+        voiceId && typeof voiceId === "string" && voiceId.trim()
+          ? voiceId.trim()
+          : preferredVoice;
+      if (requestedVoice) {
+        payload.voice = requestedVoice;
       }
 
       const response = await fetch(SPEECH_API_ENDPOINT, {
@@ -1448,13 +1452,13 @@
       return await response.blob();
     }
 
-    async function playRemoteAudio(text) {
+    async function playRemoteAudio(text, { voiceId } = {}) {
       const controller = new AbortController();
       currentFetchController = controller;
 
       let blob;
       try {
-        blob = await callSpeechApi(text, { signal: controller.signal });
+        blob = await callSpeechApi(text, { signal: controller.signal, voiceId });
       } catch (error) {
         const abortedFetch =
           controller.signal.aborted ||
@@ -1598,7 +1602,38 @@
       });
     }
 
-    function speakWithLocalSynthesis(text) {
+    function selectLocalVoice(voicePreference) {
+      if (!hasBrowserSpeech || !voicePreference) {
+        return null;
+      }
+      const normalized = voicePreference.trim().toLowerCase();
+      if (!normalized) {
+        return null;
+      }
+      try {
+        const voices = speechSynthesis.getVoices ? speechSynthesis.getVoices() : [];
+        if (!voices || !voices.length) {
+          return null;
+        }
+        const exactMatch = voices.find(voice =>
+          typeof voice.name === "string" && voice.name.trim().toLowerCase() === normalized
+        );
+        if (exactMatch) {
+          return exactMatch;
+        }
+        const partialMatch = voices.find(voice =>
+          typeof voice.name === "string" && voice.name.toLowerCase().includes(normalized)
+        );
+        if (partialMatch) {
+          return partialMatch;
+        }
+      } catch (_err) {
+        return null;
+      }
+      return null;
+    }
+
+    function speakWithLocalSynthesis(text, options = {}) {
       return new Promise(resolve => {
         if (!hasBrowserSpeech) {
           setStatus("Sprachsynthese im Browser nicht verfügbar.", "error");
@@ -1611,6 +1646,12 @@
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "de-DE";
         utterance.rate = 1;
+        if (options && typeof options.voiceId === "string") {
+          const voice = selectLocalVoice(options.voiceId);
+          if (voice) {
+            utterance.voice = voice;
+          }
+        }
 
         let finished = false;
         const cancelWatcher = setInterval(() => {
@@ -1808,7 +1849,7 @@
       );
     });
 
-    async function speak(text) {
+    async function speak(text, options = {}) {
       if (aborted) return;
 
       skipRequested = false;
@@ -1817,10 +1858,12 @@
       const truncatedText = truncateTextForDebug(text);
       const preferRemote = voiceMode === "auto";
       const canUseRemote = preferRemote && (!remoteBackoffActive || now() >= remoteRetryAvailableAt);
+      const voiceOverride =
+        options && typeof options.voiceId === "string" ? options.voiceId.trim() : "";
 
       if (preferRemote && canUseRemote) {
         try {
-          await playRemoteAudio(text);
+          await playRemoteAudio(text, { voiceId: voiceOverride });
           const duration = Math.round(now() - attemptStart);
           if (duration > REMOTE_SPEECH_SLOW_THRESHOLD_MS && truncatedText) {
             appendDebug(
@@ -1888,7 +1931,7 @@
           } else {
             appendDebug("Wechsle auf lokale Sprachsynthese.");
           }
-          await speakWithLocalSynthesis(text);
+          await speakWithLocalSynthesis(text, { voiceId: voiceOverride });
           return;
         }
       }
@@ -1926,7 +1969,7 @@
       }
 
       skipRequested = false;
-      await speakWithLocalSynthesis(text);
+      await speakWithLocalSynthesis(text, { voiceId: voiceOverride });
       return;
     }
 
@@ -2273,7 +2316,7 @@
                 if (!aborted) {
                   display.textContent = promptDisplayText;
                   try {
-                    await speak(prompt);
+                    await speak(prompt, { voiceId: "Daniel" });
                   } finally {
                     if (!aborted) {
                       restorePauseDisplay();
