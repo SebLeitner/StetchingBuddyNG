@@ -8,23 +8,48 @@ on:
 
 jobs:
   deploy:
+    name: 🚀 Deploy Frontend to AWS
     runs-on: ubuntu-latest
+
     env:
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      S3_BUCKET: ${{ secrets.S3_BUCKET }}
-      CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      S3_BUCKET: ${{ vars.S3_BUCKET }}
+      CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
       SOURCE_DIR: frontend
+
     steps:
-      - name: Checkout repository
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
+      - name: 🧭 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deploy static frontend
-        run: bash frontend/deploy.sh
+      - name: 🧪 Preview sync (dry run)
+        run: |
+          echo "=== 🧪 Vorschau: Welche Dateien würden hochgeladen werden? ==="
+          aws s3 sync "${SOURCE_DIR}" "s3://${S3_BUCKET}" --dryrun
+          echo "=== Ende der Vorschau ==="
+
+      - name: 🧘 Deploy static frontend
+        run: |
+          echo
+          echo "=== 🧘 Starte Deployment-Skript ==="
+          bash frontend/deploy.sh
+          echo
+          echo "✅ Upload abgeschlossen."
+
+      - name: ☁️ CloudFront Invalidation
+        run: |
+          echo
+          echo "=== 🌀 CloudFront Invalidation ==="
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          aws cloudfront create-invalidation \
+            --distribution-id "${CLOUDFRONT_DISTRIBUTION_ID}" \
+            --paths "/index.html" "/start.html" "/manifest.webmanifest" "/service-worker.js" "/exercises.json" "/" \
+            --query 'Invalidation.Id' --output text > invalidation_id.txt
+          echo "✅ Invalidation erstellt (Commit ${COMMIT_HASH})"
+          echo "ID: $(cat invalidation_id.txt)"
