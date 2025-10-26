@@ -1,10 +1,11 @@
-"""Lambda-Handler zum Speichern abgeschlossener Stretch-Coach-Übungen."""
+"""Lambda-Handler zum Verarbeiten von Stretch-Coach-Übungsfortschritten."""
 from __future__ import annotations
 
 import datetime as dt
 import logging
 import os
-from typing import Any, Dict, Optional
+from decimal import Decimal
+from typing import Any, Dict, Iterable, List, Mapping, Optional
 
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
@@ -28,6 +29,9 @@ if not _TABLE_NAME:
 
 dynamodb = boto3.resource("dynamodb")
 progress_table = dynamodb.Table(_TABLE_NAME)
+
+DEFAULT_LIST_LIMIT = 250
+MAX_LIST_LIMIT = 500
 
 
 def _normalize_optional_string(value: Any, field_name: str) -> Optional[str]:
@@ -72,19 +76,64 @@ def _extract_duration(payload: Dict[str, Any]) -> Optional[int]:
     return duration
 
 
-@with_error_handling
-def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    method = (
-        event.get("requestContext", {})
-        .get("http", {})
-        .get("method", "")
-        .upper()
-    )
-    if method == "OPTIONS":
-        return json_response(200, {"status": "ok"})
+def _coerce_dynamodb_value(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        if value % 1 == 0:
+            return int(value)
+        return float(value)
+    if isinstance(value, list):
+        return [_coerce_dynamodb_value(item) for item in value]
+    if isinstance(value, dict):
+        return {key: _coerce_dynamodb_value(val) for key, val in value.items()}
+    return value
 
+
+def _sanitize_items(items: Iterable[Mapping[str, Any]]) -> List[Dict[str, Any]]:
+    return [
+        {key: _coerce_dynamodb_value(value) for key, value in item.items()}
+        for item in items
+    ]
+
+
+def _parse_limit(event: Mapping[str, Any]) -> int:
+    params = event.get("queryStringParameters") or {}
+    raw_limit = params.get("limit") if isinstance(params, dict) else None
+    if raw_limit in (None, ""):
+        return DEFAULT_LIST_LIMIT
+    try:
+        limit = int(raw_limit)
+    except (TypeError, ValueError):
+        raise HttpError(400, "'limit' muss eine Ganzzahl sein")
+    if limit <= 0:
+        raise HttpError(400, "'limit' muss größer als 0 sein")
+    return min(limit, MAX_LIST_LIMIT)
+
+
+def _list_progress_entries(event: Mapping[str, Any]) -> Dict[str, Any]:
+    limit = _parse_limit(event)
+    items: List[Dict[str, Any]] = []
+    exclusive_start_key = None
+
+    while len(items) < limit:
+        page_size = max(1, min(limit - len(items), 100))
+        scan_kwargs: Dict[str, Any] = {"Limit": page_size}
+        if exclusive_start_key:
+            scan_kwargs["ExclusiveStartKey"] = exclusive_start_key
+
+        response = progress_table.scan(**scan_kwargs)
+        page_items = response.get("Items", [])
+        items.extend(_sanitize_items(page_items))
+
+        exclusive_start_key = response.get("LastEvaluatedKey")
+        if not exclusive_start_key:
+            break
+
+    items.sort(key=lambda item: item.get("completed_at") or "", reverse=True)
+    return json_response(200, {"items": items[:limit]})
+
+
+def _store_progress_entry(event: Mapping[str, Any]) -> Dict[str, Any]:
     payload = parse_json_body(event)
-
     client_id = expect_string(payload.get("clientId"), "clientId")
     exercise_id = expect_string(payload.get("exerciseId"), "exerciseId")
     total_sets = expect_positive_int(payload.get("totalSets"), "totalSets")
@@ -138,3 +187,21 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         raise HttpError(502, "Übungsfortschritt konnte nicht gespeichert werden") from exc
 
     return json_response(201, {"status": "stored", "completedAt": item["completed_at"]})
+
+
+@with_error_handling
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
+    method = (
+        event.get("requestContext", {})
+        .get("http", {})
+        .get("method", "")
+        .upper()
+    )
+    if method == "OPTIONS":
+        return json_response(200, {"status": "ok"})
+    if method == "GET":
+        return _list_progress_entries(event)
+    if method == "POST":
+        return _store_progress_entry(event)
+
+    raise HttpError(405, "Methode wird nicht unterstützt")

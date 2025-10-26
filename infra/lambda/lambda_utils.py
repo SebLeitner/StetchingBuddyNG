@@ -21,7 +21,7 @@ class HttpError(Exception):
 
 def _cors_headers() -> Dict[str, str]:
     allowed_origin = os.environ.get("CORS_ALLOW_ORIGIN", "*")
-    allowed_methods = os.environ.get("CORS_ALLOW_METHODS", "OPTIONS,POST")
+    allowed_methods = os.environ.get("CORS_ALLOW_METHODS", "OPTIONS,POST,GET")
     allowed_headers = os.environ.get(
         "CORS_ALLOW_HEADERS",
         "Content-Type,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Api-Key",

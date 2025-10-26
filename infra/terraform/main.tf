@@ -290,7 +290,7 @@ resource "aws_lambda_function" "exercise_progress" {
       PROGRESS_TABLE_NAME = aws_dynamodb_table.exercise_completions.name
       CORS_ALLOW_ORIGIN   = "https://sbuddy.leitnersoft.com"
       CORS_ALLOW_HEADERS  = "Content-Type,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Api-Key"
-      CORS_ALLOW_METHODS  = "OPTIONS,POST"
+      CORS_ALLOW_METHODS  = "OPTIONS,POST,GET"
     }
   }
 }
@@ -308,7 +308,7 @@ resource "aws_apigatewayv2_api" "speech" {
       "X-Amz-Security-Token",
       "X-Api-Key"
     ]
-    allow_methods     = ["OPTIONS", "POST"]
+    allow_methods     = ["OPTIONS", "POST", "GET"]
     allow_origins     = ["https://sbuddy.leitnersoft.com"]
     max_age           = 3600
   }
@@ -344,6 +344,12 @@ resource "aws_apigatewayv2_route" "exercise_progress" {
   target    = "integrations/${aws_apigatewayv2_integration.exercise_progress.id}"
 }
 
+resource "aws_apigatewayv2_route" "exercise_progress_get" {
+  api_id    = aws_apigatewayv2_api.speech.id
+  route_key = "GET /api/exercise-completions"
+  target    = "integrations/${aws_apigatewayv2_integration.exercise_progress.id}"
+}
+
 resource "aws_apigatewayv2_stage" "speech" {
   api_id      = aws_apigatewayv2_api.speech.id
   name        = "$default"
@@ -351,7 +357,8 @@ resource "aws_apigatewayv2_stage" "speech" {
 
   depends_on = [
     aws_apigatewayv2_route.speech,
-    aws_apigatewayv2_route.exercise_progress
+    aws_apigatewayv2_route.exercise_progress,
+    aws_apigatewayv2_route.exercise_progress_get
   ]
 }
 
