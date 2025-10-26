@@ -722,6 +722,7 @@
     let voiceMode = "auto";
     let exercises = [];
     let exercise = null;
+    let mindfulnessPrompts = [];
     let skipRequested = false;
     let aborted = false;
     let sessionRunning = false;
@@ -818,6 +819,45 @@
           : "/api/exercise-completions";
       }
       return "/api/exercise-completions";
+    }
+
+    function collectMindfulnessPrompts(source, result) {
+      if (!source) {
+        return result;
+      }
+      if (Array.isArray(source)) {
+        for (const entry of source) {
+          collectMindfulnessPrompts(entry, result);
+        }
+        return result;
+      }
+      if (typeof source === "object") {
+        for (const value of Object.values(source)) {
+          collectMindfulnessPrompts(value, result);
+        }
+        return result;
+      }
+      if (typeof source === "string") {
+        const trimmed = source.trim();
+        if (trimmed) {
+          result.push(trimmed);
+        }
+      }
+      return result;
+    }
+
+    function flattenMindfulnessPrompts(data) {
+      const buffer = [];
+      collectMindfulnessPrompts(data, buffer);
+      return buffer;
+    }
+
+    function getRandomMindfulnessPrompt() {
+      if (!Array.isArray(mindfulnessPrompts) || mindfulnessPrompts.length === 0) {
+        return null;
+      }
+      const index = Math.floor(Math.random() * mindfulnessPrompts.length);
+      return mindfulnessPrompts[index] ?? null;
     }
 
     function setStatus(message = "", type = "info") {
@@ -1171,6 +1211,35 @@
       }
       if (typeof resolver === "function") {
         resolver();
+      }
+    }
+
+    async function waitWithPauseSupport(durationMs, options = {}) {
+      let remaining = Math.max(0, Number(durationMs) || 0);
+      if (remaining <= 0) {
+        return;
+      }
+      const onResume = typeof options.onResume === "function" ? options.onResume : null;
+      while (remaining > 0 && !aborted) {
+        if (pauseRequested) {
+          await handlePauseIfNeeded();
+          if (aborted) {
+            return;
+          }
+          if (onResume) {
+            try {
+              onResume();
+            } catch (error) {
+              console.error("Fehler beim Wiederherstellen der Pausenanzeige", error);
+            }
+          }
+        }
+        const step = Math.min(remaining, 250);
+        await new Promise(resolve => setTimeout(resolve, step));
+        if (aborted) {
+          return;
+        }
+        remaining -= step;
       }
     }
 
@@ -1861,6 +1930,29 @@
       return;
     }
 
+    // --- Inhalte laden ---
+    fetch("mindfulness.json")
+      .then(res => {
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        return res.json();
+      })
+      .then(data => {
+        const prompts = flattenMindfulnessPrompts(data);
+        mindfulnessPrompts = prompts;
+        if (prompts.length > 0) {
+          appendDebug(`Mindfulness-Impulse geladen (${prompts.length}).`);
+        } else {
+          appendDebug("Keine Mindfulness-Impulse gefunden.");
+        }
+      })
+      .catch(error => {
+        mindfulnessPrompts = [];
+        console.error("Fehler beim Laden der Mindfulness-Impulse", error);
+        appendDebug("Mindfulness-Impulse konnten nicht geladen werden.", describeError(error));
+      });
+
     // --- Übungen laden ---
     fetch("exercises.json")
       .then(res => res.json())
@@ -2146,8 +2238,58 @@
 
         if (set < exercise.sets) {
           await speak(`Pause ${exercise.rest_time} Sekunden.`);
-          display.textContent = `Pause: ${exercise.rest_time}s`;
-          await new Promise(r => setTimeout(r, (exercise.rest_time - 5) * 1000));
+          const restSecondsNumeric = Number(exercise.rest_time);
+          const restSeconds = Number.isFinite(restSecondsNumeric) ? restSecondsNumeric : 0;
+          const basePauseText = `Pause: ${exercise.rest_time}s`;
+          const wantsMindfulness =
+            typeof exercise.mindfulness === "string" && exercise.mindfulness.trim().toLowerCase() === "yes";
+          const restWaitMs = Math.max(0, (restSeconds - 5) * 1000);
+          const restorePauseDisplay = () => {
+            if (display && !aborted) {
+              display.textContent = basePauseText;
+            }
+          };
+
+          display.textContent = basePauseText;
+
+          if (restWaitMs > 0) {
+            if (wantsMindfulness) {
+              const beforePromptMs = Math.floor(restWaitMs / 2);
+              const afterPromptMs = Math.max(restWaitMs - beforePromptMs, 0);
+
+              if (beforePromptMs > 0) {
+                await waitWithPauseSupport(beforePromptMs, { onResume: restorePauseDisplay });
+                if (aborted) break;
+              }
+
+              const prompt = getRandomMindfulnessPrompt();
+              if (prompt && !aborted) {
+                const promptDisplayText = `${basePauseText} – ${prompt}`;
+                if (pauseRequested && !aborted) {
+                  await handlePauseIfNeeded();
+                  if (aborted) break;
+                  restorePauseDisplay();
+                }
+                if (!aborted) {
+                  display.textContent = promptDisplayText;
+                  try {
+                    await speak(prompt);
+                  } finally {
+                    if (!aborted) {
+                      restorePauseDisplay();
+                    }
+                  }
+                  if (aborted) break;
+                }
+              }
+
+              if (afterPromptMs > 0 && !aborted) {
+                await waitWithPauseSupport(afterPromptMs, { onResume: restorePauseDisplay });
+              }
+            } else {
+              await waitWithPauseSupport(restWaitMs, { onResume: restorePauseDisplay });
+            }
+          }
           if (aborted) break;
           await speak("Noch fünf Sekunden");
           await countdown(5, "", ""); // kein Los! hier
