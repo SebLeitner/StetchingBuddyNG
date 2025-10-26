@@ -50,6 +50,7 @@
     "sets": 3,
     "rest_time": 30
   },
+  {
     "id": "schraegerbauch_rechts",
     "name": "Schräger Bauch Links",
     "instruction": "Lege Dich auf den Boden flach. Versuche mit dem rechten Arm nach nach schräg zu greifen und komme zur Ausgangsposition zurück.",
@@ -60,3 +61,4 @@
     "rest_time": 30
   }
 ]
+
