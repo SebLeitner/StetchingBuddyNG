@@ -321,7 +321,10 @@
     let lastRemoteBackoffLogAt = 0;
     let audioUnlockPromise = null;
     let sharedAudioElement = null;
+    let sharedAudioContext = null;
+    let audioContextUnlockPromise = null;
     let audioUnlocked = false;
+    let lastAudioUnlockError = "";
 
     const display = document.getElementById("display");
     const startBtn = document.getElementById("startBtn");
@@ -341,7 +344,7 @@
     const REMOTE_RETRY_MAX_DELAY_MS = 60000;
     const REMOTE_BACKOFF_LOG_THROTTLE_MS = 3000;
     const SILENT_AUDIO_SRC =
-      "data:audio/mp4;base64,AAAAHGZ0eXBtcDQyAAAAAG1wNDFtcDQyaXNvbWF2YzEAAAAIZnJlZQAAAcNtZGF0AAAAAA==";
+      "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
     const now = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
 
     const speechConfig = window.STRETCH_COACH_CONFIG || {};
@@ -722,11 +725,75 @@
       });
     }
 
+    function getAudioContextConstructor() {
+      return typeof window !== "undefined"
+        ? window.AudioContext || window.webkitAudioContext || null
+        : null;
+    }
+
+    async function unlockAudioContext() {
+      const AudioContextCtor = getAudioContextConstructor();
+      if (!AudioContextCtor) {
+        lastAudioUnlockError = "Keine Web-Audio-Unterstützung zur Tonfreigabe vorhanden.";
+        return false;
+      }
+
+      if (audioContextUnlockPromise) {
+        return audioContextUnlockPromise;
+      }
+
+      const attempt = (async () => {
+        try {
+          if (!sharedAudioContext) {
+            sharedAudioContext = new AudioContextCtor();
+          }
+          const context = sharedAudioContext;
+          if (!context) {
+            return false;
+          }
+          if (context.state === "suspended") {
+            await context.resume();
+          }
+
+          const frameCount = Math.max(Math.floor(context.sampleRate / 60), 1);
+          const buffer = context.createBuffer(1, frameCount, context.sampleRate);
+          const source = context.createBufferSource();
+          source.buffer = buffer;
+          source.connect(context.destination);
+          try {
+            source.start(0);
+          } catch (_err) {
+            // ignore start errors if source already stopped
+          }
+          return true;
+        } catch (error) {
+          appendDebug("Freischaltung via Web Audio fehlgeschlagen.", describeError(error));
+          lastAudioUnlockError = "Audio konnte nicht freigeschaltet werden (Web Audio).";
+          return false;
+        }
+      })();
+
+      audioContextUnlockPromise = attempt
+        .then(success => {
+          if (!success) {
+            audioContextUnlockPromise = null;
+          }
+          return success;
+        })
+        .catch(error => {
+          audioContextUnlockPromise = null;
+          throw error;
+        });
+
+      return audioContextUnlockPromise;
+    }
+
     function ensureAudioUnlocked() {
       if (audioUnlockPromise) return audioUnlockPromise;
 
       if (typeof Audio === "undefined") {
         audioUnlocked = true;
+        lastAudioUnlockError = "";
         audioUnlockPromise = Promise.resolve(true);
         return audioUnlockPromise;
       }
@@ -743,9 +810,32 @@
       const unlockAttempt = sharedAudioElement
         .play()
         .then(() => true)
-        .catch(err => {
+        .catch(async err => {
           console.warn("Konnte Audio nicht initialisieren.", err);
-          appendDebug("Browser blockiert Audioausgabe.", describeError(err));
+          const errorDescription = describeError(err);
+          const isNotSupported = err && err.name === "NotSupportedError";
+          const isNotAllowed = err && err.name === "NotAllowedError";
+
+          if (isNotSupported) {
+            appendDebug(
+              "Stille Audiodatei zum Entsperren wird nicht unterstützt.",
+              errorDescription
+            );
+            lastAudioUnlockError =
+              "Browser unterstützt das Audioformat zur Freischaltung nicht.";
+            const contextUnlocked = await unlockAudioContext();
+            if (contextUnlocked) {
+              lastAudioUnlockError = "";
+              return true;
+            }
+          } else if (isNotAllowed) {
+            appendDebug("Browser blockiert die Audiowiedergabe.", errorDescription);
+            lastAudioUnlockError =
+              "Browser blockiert die Audiowiedergabe. Bitte tippe erneut, um Ton zu aktivieren.";
+          } else {
+            appendDebug("Audio konnte nicht freigeschaltet werden.", errorDescription);
+            lastAudioUnlockError = "Audio konnte nicht freigeschaltet werden.";
+          }
           return false;
         })
         .finally(() => {
@@ -1062,13 +1152,17 @@
       if (!exercise) return;
       const unlocked = await ensureAudioUnlocked();
       if (!unlocked) {
-        setStatus(
-          "Audioausgabe wurde vom Browser blockiert. Bitte tippe erneut oder prüfe die Autoplay-Einstellungen.",
-          "warn"
+        const warningMessage =
+          lastAudioUnlockError ||
+          "Audioausgabe wurde vom Browser blockiert. Bitte tippe erneut oder prüfe die Autoplay-Einstellungen.";
+        setStatus(warningMessage, "warn");
+        appendDebug(
+          "Audio konnte nicht freigeschaltet werden.",
+          lastAudioUnlockError ? truncateTextForDebug(lastAudioUnlockError, 200) : ""
         );
-        appendDebug("Audio konnte nicht freigeschaltet werden.");
         return;
       }
+      lastAudioUnlockError = "";
       void doExercise();
     });
 
