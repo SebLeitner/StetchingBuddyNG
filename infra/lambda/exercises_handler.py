@@ -77,15 +77,8 @@ def _parse_optional_int(value: Any, field_name: str, *, positive: bool = False) 
     return expect_non_negative_int(value, field_name)
 
 
-def _is_test_exercise(exercise_id: str) -> bool:
-    normalized = exercise_id.strip().lower()
-    return normalized in {"test", "test übung", "testübung"}
-
-
 def _build_item(payload: Mapping[str, Any]) -> Dict[str, Any]:
     exercise_id = expect_string(payload.get("id"), "id")
-    if _is_test_exercise(exercise_id):
-        raise HttpError(400, "Test-Übungen können nicht in der Datenbank gespeichert werden")
 
     item: Dict[str, Any] = {
         "exercise_id": exercise_id,
@@ -123,11 +116,7 @@ def _list_exercises() -> Dict[str, Any]:
         raise HttpError(502, "Übungen konnten nicht geladen werden") from exc
 
     raw_items = response.get("Items", [])
-    sanitized = [
-        item
-        for item in _sanitize_items(raw_items)
-        if item.get("id") and not _is_test_exercise(str(item["id"]))
-    ]
+    sanitized = [item for item in _sanitize_items(raw_items) if item.get("id")]
     sanitized.sort(key=lambda entry: (entry.get("name") or "").lower())
     return json_response(200, {"items": sanitized, "count": len(sanitized)})
 
@@ -140,7 +129,7 @@ def _get_exercise(exercise_id: str) -> Dict[str, Any]:
         raise HttpError(502, "Übung konnte nicht geladen werden") from exc
 
     item = response.get("Item")
-    if not item or _is_test_exercise(item.get("id", "")):
+    if not item:
         raise HttpError(404, "Übung wurde nicht gefunden")
 
     sanitized = _sanitize_items([item])[0]
@@ -193,9 +182,6 @@ def _update_exercise(path_id: str, payload: Mapping[str, Any]) -> Dict[str, Any]
 
 
 def _delete_exercise(exercise_id: str) -> Dict[str, Any]:
-    if _is_test_exercise(exercise_id):
-        raise HttpError(404, "Übung wurde nicht gefunden")
-
     try:
         response = exercises_table.delete_item(
             Key={"exercise_id": exercise_id},

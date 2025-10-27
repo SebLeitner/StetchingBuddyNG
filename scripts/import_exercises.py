@@ -13,11 +13,6 @@ import boto3
 DEFAULT_SOURCE = Path(__file__).resolve().parents[1] / "frontend" / "exercises.json"
 
 
-def _is_test_exercise(exercise_id: str) -> bool:
-    normalized = exercise_id.strip().lower()
-    return normalized in {"test", "test übung", "testübung"}
-
-
 def _load_exercises(path: Path) -> List[Dict[str, Any]]:
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
@@ -30,8 +25,6 @@ def _prepare_item(entry: Dict[str, Any]) -> Dict[str, Any]:
     exercise_id = str(entry.get("id", "")).strip()
     if not exercise_id:
         raise ValueError("Eintrag ohne 'id' gefunden")
-    if _is_test_exercise(exercise_id):
-        raise ValueError("Test-Übungen dürfen nicht importiert werden")
 
     item: Dict[str, Any] = {"exercise_id": exercise_id, "id": exercise_id}
     for key, value in entry.items():
@@ -85,7 +78,7 @@ def main() -> None:
         raise SystemExit(f"Quelldatei {source_path} wurde nicht gefunden.")
 
     raw_entries = _load_exercises(source_path)
-    items = [_prepare_item(entry) for entry in raw_entries if not _is_test_exercise(str(entry.get("id", "")))]
+    items = [_prepare_item(entry) for entry in raw_entries]
 
     session_kwargs = {}
     if args.region:
