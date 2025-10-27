@@ -31,12 +31,12 @@ Die Lambda-Funktion akzeptiert auch JSON-Antworten von Polly-Tasks (z. B. `audio
 - **Basis-URL**: `${APIGATEWAY_INVOKE_URL}/api/exercises`
 - **Antwortformat**: Alle Endpunkte liefern JSON mit CORS-Headern. Fehler werden als `{ "error": "…" }` ausgegeben.
 - **Endpunkte**:
-  - `GET /api/exercises`: Liefert `{ "items": [ … ], "count": <number> }` ohne Test-Übungen.
+  - `GET /api/exercises`: Liefert `{ "items": [ … ], "count": <number> }` inklusive Test-Übungen.
   - `GET /api/exercises/{id}`: Einzelne Übung nach `id`.
   - `POST /api/exercises`: Legt eine neue Übung an. Pflichtfelder: `id`, `name`, `instruction`, `sets` (>= 1). Optionale Felder wie `prep_time`, `duration`, `rep_time`, `rest_time`, `mindfulness`, `break_bell` werden übernommen, leere Strings werden ignoriert.
   - `PUT /api/exercises/{id}`: Aktualisiert eine bestehende Übung. Ein optionales Feld `previousId` erlaubt das Umbenennen (Ändern der `id`).
   - `DELETE /api/exercises/{id}`: Löscht eine Übung. "Test"-IDs werden serverseitig abgefangen.
-- **Validierungsregeln**: Numerische Felder müssen Ganzzahlen sein (`sets` > 0, übrige Werte >= 0). Test-Übungen (`test`, `test übung`, `testübung`) werden weder gespeichert noch ausgeliefert.
+- **Validierungsregeln**: Numerische Felder müssen Ganzzahlen sein (`sets` > 0, übrige Werte >= 0). Test-Übungen (`test`, `test übung`, `testübung`) werden wie reguläre Einträge gespeichert und ausgeliefert, fließen jedoch nicht in Statistiken ein.
 
 Zur Erstbefüllung dient `scripts/import_exercises.py`, das die bestehende `frontend/exercises.json` in die neue DynamoDB-Tabelle schreibt (`python scripts/import_exercises.py --table <TABELLE>`).
 

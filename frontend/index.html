@@ -2491,14 +2491,6 @@
     // --- Übungen laden ---
     const exercisesApiUrl = (window.STRETCH_COACH_CONFIG || {}).exercisesApiUrl;
 
-    const isTestExerciseId = id => {
-      if (!id) {
-        return false;
-      }
-      const normalized = String(id).trim().toLowerCase();
-      return normalized === "test" || normalized === "test übung" || normalized === "testübung";
-    };
-
     const normalizeExercises = data => {
       if (!data) {
         return [];
@@ -2526,7 +2518,7 @@
         .then(normalizeExercises);
 
     const populateExercises = list => {
-      exercises = list.filter(entry => entry && typeof entry.id === "string" && !isTestExerciseId(entry.id));
+      exercises = list.filter(entry => entry && typeof entry.id === "string");
       select.innerHTML = exercises.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
       exercise = exercises[0] ?? null;
       applyBreakBellPreset(exercise);
