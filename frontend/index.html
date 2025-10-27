@@ -413,6 +413,22 @@
       }
     }
 
+    .mindfulness-button {
+      background: linear-gradient(135deg, #a855f7, #7c3aed);
+      box-shadow: 0 12px 24px rgba(124, 58, 237, 0.32);
+      grid-column: 1 / -1;
+    }
+
+    .mindfulness-button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+    }
+
+    .mindfulness-button:active:not(:disabled) {
+      transform: translateY(0);
+      filter: brightness(0.97);
+    }
+
     .secondary-actions {
       display: grid;
       gap: 0.75rem;
@@ -785,6 +801,7 @@
       <div class="primary-actions">
         <button id="openSessionBtn" class="primary-button" type="button" disabled>Start</button>
         <button id="beatsRadioBtn" class="beats-radio-button" type="button">Beats Radio</button>
+        <button id="mindfulnessPromptBtn" class="mindfulness-button" type="button">Achtsamkeitsspruch</button>
       </div>
       <div class="secondary-actions">
         <button id="viewStatsBtn" type="button" class="stats-button">Statistiken ansehen</button>
@@ -882,6 +899,7 @@
     const exerciseEditorLink = document.getElementById("exerciseEditorLink");
     const openSessionBtn = document.getElementById("openSessionBtn");
     const beatsRadioBtn = document.getElementById("beatsRadioBtn");
+    const mindfulnessPromptBtn = document.getElementById("mindfulnessPromptBtn");
     const debugLogBtn = document.getElementById("debugLogBtn");
     const exerciseModal = document.getElementById("exerciseModal");
     const sessionCloseBtn = document.getElementById("sessionCloseBtn");
@@ -906,6 +924,7 @@
     let exercises = [];
     let exercise = null;
     let mindfulnessPrompts = [];
+    let mindfulnessPromptActive = false;
     let skipRequested = false;
     let aborted = false;
     let sessionRunning = false;
@@ -973,6 +992,7 @@
       "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
     const BREAK_BELL_PROMPT_LEAD_MS = 2000;
     const MINDFULNESS_SPEECH_RATE = 0.9;
+    const MINDFULNESS_PROMPT_DELAY_MS = 3000;
     let breakBellAudioElement = null;
     let breakBellAudioReadyPromise = null;
 
@@ -1078,6 +1098,37 @@
       }
       const index = Math.floor(Math.random() * mindfulnessPrompts.length);
       return mindfulnessPrompts[index] ?? null;
+    }
+
+    async function playStandaloneMindfulnessPrompt(prompt) {
+      if (!prompt) {
+        return;
+      }
+
+      appendDebug("Achtsamkeitsspruch (Startseite) gestartet.");
+      setStatus("Ein Moment der Achtsamkeit beginnt...", "info");
+
+      try {
+        await playBreakBellCue();
+        await new Promise(resolve => setTimeout(resolve, MINDFULNESS_PROMPT_DELAY_MS));
+
+        if (sessionRunning) {
+          appendDebug("Achtsamkeitsspruch (Startseite) abgebrochen, Training gestartet.");
+          setStatus("Achtsamkeitsspruch übersprungen, da ein Training gestartet wurde.", "warn");
+          return;
+        }
+
+        setStatus(prompt, "info");
+        await speak(prompt, { voiceId: "Daniel", rate: MINDFULNESS_SPEECH_RATE });
+        appendDebug("Achtsamkeitsspruch (Startseite) beendet.");
+      } catch (error) {
+        console.error("Fehler beim Abspielen des Achtsamkeitsspruchs", error);
+        appendDebug(
+          "Achtsamkeitsspruch (Startseite) fehlgeschlagen.",
+          describeError(error)
+        );
+        setStatus("Achtsamkeitsspruch konnte nicht abgespielt werden.", "error");
+      }
     }
 
     function setStatus(message = "", type = "info") {
@@ -2846,6 +2897,42 @@
         display.textContent = preview || (exercise && exercise.name ? exercise.name : "Bereit?");
       }
     });
+
+    if (mindfulnessPromptBtn) {
+      mindfulnessPromptBtn.addEventListener("click", async () => {
+        if (mindfulnessPromptActive) {
+          return;
+        }
+
+        if (sessionRunning) {
+          setStatus(
+            "Während eines laufenden Trainings steht der Achtsamkeitsspruch nicht zur Verfügung.",
+            "warn"
+          );
+          appendDebug(
+            "Achtsamkeitsspruch (Startseite) übersprungen, Session läuft bereits."
+          );
+          return;
+        }
+
+        const prompt = getRandomMindfulnessPrompt();
+        if (!prompt) {
+          setStatus("Es sind keine Achtsamkeitssprüche verfügbar.", "warn");
+          appendDebug("Achtsamkeitsspruch (Startseite) nicht verfügbar – keine Texte geladen.");
+          return;
+        }
+
+        mindfulnessPromptActive = true;
+        mindfulnessPromptBtn.disabled = true;
+
+        try {
+          await playStandaloneMindfulnessPrompt(prompt);
+        } finally {
+          mindfulnessPromptActive = false;
+          mindfulnessPromptBtn.disabled = false;
+        }
+      });
+    }
 
     if (exerciseDetailsBtn) {
       exerciseDetailsBtn.addEventListener("click", () => {
