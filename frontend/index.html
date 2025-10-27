@@ -973,6 +973,7 @@
     const SILENT_AUDIO_SRC =
       "data:audio/wav;base64,UklGRrQBAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YZABAACAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICA";
     const BREAK_BELL_PROMPT_LEAD_MS = 2000;
+    const MINDFULNESS_SPEECH_RATE = 0.9;
     let breakBellAudioElement = null;
     let breakBellAudioReadyPromise = null;
 
@@ -1822,7 +1823,7 @@
       }
     }
 
-    async function callSpeechApi(text, { signal, voiceId } = {}) {
+    async function callSpeechApi(text, { signal, voiceId, rate } = {}) {
       const payload = { text, language: "de-DE" };
       const requestedVoice =
         voiceId && typeof voiceId === "string" && voiceId.trim()
@@ -1830,6 +1831,9 @@
           : preferredVoice;
       if (requestedVoice) {
         payload.voice = requestedVoice;
+      }
+      if (typeof rate === "number" && Number.isFinite(rate) && rate > 0) {
+        payload.rate = clampSpeechRate(rate);
       }
 
       const response = await fetch(SPEECH_API_ENDPOINT, {
@@ -1882,13 +1886,13 @@
       return await response.blob();
     }
 
-    async function playRemoteAudio(text, { voiceId } = {}) {
+    async function playRemoteAudio(text, { voiceId, rate } = {}) {
       const controller = new AbortController();
       currentFetchController = controller;
 
       let blob;
       try {
-        blob = await callSpeechApi(text, { signal: controller.signal, voiceId });
+        blob = await callSpeechApi(text, { signal: controller.signal, voiceId, rate });
       } catch (error) {
         const abortedFetch =
           controller.signal.aborted ||
@@ -2063,6 +2067,13 @@
       return null;
     }
 
+    function clampSpeechRate(rate) {
+      if (typeof rate !== "number" || !Number.isFinite(rate)) {
+        return 1;
+      }
+      return Math.min(4, Math.max(0.1, rate));
+    }
+
     function speakWithLocalSynthesis(text, options = {}) {
       return new Promise(resolve => {
         if (!hasBrowserSpeech) {
@@ -2075,7 +2086,7 @@
         continueBtn.disabled = false;
         const utterance = new SpeechSynthesisUtterance(text);
         utterance.lang = "de-DE";
-        utterance.rate = 1;
+        utterance.rate = clampSpeechRate(options.rate);
         if (options && typeof options.voiceId === "string") {
           const voice = selectLocalVoice(options.voiceId);
           if (voice) {
@@ -2290,10 +2301,11 @@
       const canUseRemote = preferRemote && (!remoteBackoffActive || now() >= remoteRetryAvailableAt);
       const voiceOverride =
         options && typeof options.voiceId === "string" ? options.voiceId.trim() : "";
+      const desiredRate = options && typeof options.rate === "number" ? options.rate : undefined;
 
       if (preferRemote && canUseRemote) {
         try {
-          await playRemoteAudio(text, { voiceId: voiceOverride });
+          await playRemoteAudio(text, { voiceId: voiceOverride, rate: desiredRate });
           const duration = Math.round(now() - attemptStart);
           if (duration > REMOTE_SPEECH_SLOW_THRESHOLD_MS && truncatedText) {
             appendDebug(
@@ -2361,7 +2373,7 @@
           } else {
             appendDebug("Wechsle auf lokale Sprachsynthese.");
           }
-          await speakWithLocalSynthesis(text, { voiceId: voiceOverride });
+          await speakWithLocalSynthesis(text, { voiceId: voiceOverride, rate: desiredRate });
           return;
         }
       }
@@ -2399,7 +2411,7 @@
       }
 
       skipRequested = false;
-      await speakWithLocalSynthesis(text, { voiceId: voiceOverride });
+      await speakWithLocalSynthesis(text, { voiceId: voiceOverride, rate: desiredRate });
       return;
     }
 
@@ -2711,15 +2723,16 @@
         completedSets += 1;
 
         if (set < exercise.sets) {
-          if (isBreakBellEnabled()) {
+          const wantsMindfulness =
+            typeof exercise.mindfulness === "string" &&
+            exercise.mindfulness.trim().toLowerCase() === "yes";
+          if (isBreakBellEnabled() && !wantsMindfulness) {
             await playBreakBellCue();
           }
           await speak(`Pause ${exercise.rest_time} Sekunden.`);
           const restSecondsNumeric = Number(exercise.rest_time);
           const restSeconds = Number.isFinite(restSecondsNumeric) ? restSecondsNumeric : 0;
           const basePauseText = `Pause: ${exercise.rest_time}s`;
-          const wantsMindfulness =
-            typeof exercise.mindfulness === "string" && exercise.mindfulness.trim().toLowerCase() === "yes";
           const restWaitMs = Math.max(0, (restSeconds - 5) * 1000);
           const restorePauseDisplay = () => {
             if (display && !aborted) {
@@ -2775,7 +2788,7 @@
                 if (!aborted) {
                   display.textContent = promptDisplayText;
                   try {
-                    await speak(prompt, { voiceId: "Daniel" });
+                    await speak(prompt, { voiceId: "Daniel", rate: MINDFULNESS_SPEECH_RATE });
                   } finally {
                     if (!aborted) {
                       restorePauseDisplay();
