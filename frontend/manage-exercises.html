@@ -16,6 +16,8 @@
         --accent-strong: #2f6ad8;
         --accent-warn: #f39c12;
         --accent-stop: #e74c3c;
+        --accent-soft: rgba(61, 139, 255, 0.12);
+        --accent-border: rgba(61, 139, 255, 0.25);
         --radius-large: 24px;
         --radius-medium: 16px;
         --shadow: 0 20px 40px rgba(26, 42, 58, 0.18);
@@ -32,60 +34,46 @@
         margin: 0;
         min-height: 100vh;
         display: flex;
-        flex-direction: column;
+        justify-content: center;
         align-items: stretch;
+        padding: clamp(1.5rem, 4vw, 3rem);
         background: var(--bg-gradient);
         color: var(--text-primary);
-        padding: clamp(1.4rem, 3vw, 2rem);
-        gap: clamp(1.4rem, 3vw, 2.4rem);
       }
 
-      header {
+      main {
+        width: min(1080px, 100%);
+        margin: 0 auto;
+        display: grid;
+        gap: clamp(1.5rem, 3vw, 2.5rem);
+      }
+
+      .page-nav {
         display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        justify-content: space-between;
-        padding: clamp(1.2rem, 2.4vw, 1.8rem);
-        background: var(--surface);
-        backdrop-filter: blur(10px);
-        border-radius: var(--radius-large);
-        box-shadow: var(--shadow);
-        gap: 1rem;
+        justify-content: flex-start;
       }
 
-      header h1 {
-        margin: 0;
-        font-size: clamp(1.8rem, 4vw, 2.4rem);
-        letter-spacing: -0.02em;
-      }
-
-      nav a {
+      .back-link {
         display: inline-flex;
         align-items: center;
-        gap: 0.5rem;
-        padding: 0.65rem 1.1rem;
+        gap: 0.4rem;
+        padding: 0.6rem 1rem;
         border-radius: 999px;
-        background: rgba(61, 139, 255, 0.12);
+        border: 1px solid var(--accent-border);
+        background: var(--accent-soft);
         color: var(--accent-strong);
         text-decoration: none;
         font-weight: 600;
         transition: background 0.2s ease, transform 0.2s ease;
       }
 
-      nav a:hover,
-      nav a:focus-visible {
+      .back-link:hover,
+      .back-link:focus-visible {
         background: rgba(61, 139, 255, 0.22);
         transform: translateY(-1px);
       }
 
-      main {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-        gap: clamp(1.4rem, 3vw, 2rem);
-      }
-
-      .toolbar,
-      .info-card {
+      .card {
         background: var(--surface);
         backdrop-filter: blur(10px);
         border-radius: var(--radius-large);
@@ -95,8 +83,40 @@
         gap: clamp(1rem, 2vw, 1.4rem);
       }
 
+      .intro-card {
+        text-align: center;
+        gap: 0.6rem;
+      }
+
+      .intro-card h1 {
+        margin: 0;
+        font-size: clamp(1.8rem, 4vw, 2.4rem);
+        letter-spacing: -0.02em;
+      }
+
+      .intro-card p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 1rem;
+      }
+
+      .toolbar,
+      .info-card {
+        gap: clamp(1rem, 2vw, 1.4rem);
+      }
+
       .toolbar {
         align-items: start;
+      }
+
+      .info-card {
+        color: var(--text-secondary);
+        font-size: 0.95rem;
+      }
+
+      .info-card p {
+        margin: 0;
+        line-height: 1.5;
       }
 
       .toolbar-actions {
@@ -107,33 +127,38 @@
 
       button,
       input,
-      textarea {
+      textarea,
+      select {
         font-family: inherit;
       }
 
       button {
         padding: 0.75rem 1.2rem;
-        border-radius: 999px;
+        border-radius: 14px;
         border: none;
         font-weight: 600;
         cursor: pointer;
-        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+        transition: transform 0.2s ease, filter 0.2s ease, box-shadow 0.2s ease;
       }
 
       button.primary {
-        background: var(--accent);
-        color: white;
-        box-shadow: 0 12px 20px rgba(61, 139, 255, 0.25);
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: #fff;
+        box-shadow: 0 12px 22px rgba(61, 139, 255, 0.28);
       }
 
       button.secondary {
-        background: rgba(61, 139, 255, 0.12);
+        background: var(--accent-soft);
         color: var(--accent-strong);
+        border: 1px solid var(--accent-border);
+        box-shadow: none;
       }
 
       button.danger {
-        background: rgba(231, 76, 60, 0.1);
+        background: rgba(231, 76, 60, 0.12);
         color: var(--accent-stop);
+        border: 1px solid rgba(231, 76, 60, 0.25);
+        box-shadow: none;
       }
 
       button:focus-visible {
@@ -143,6 +168,20 @@
 
       button:hover {
         transform: translateY(-1px);
+        filter: brightness(1.05);
+      }
+
+      button:active {
+        transform: translateY(0);
+        filter: brightness(0.95);
+      }
+
+      button:disabled {
+        opacity: 0.65;
+        cursor: not-allowed;
+        box-shadow: none;
+        transform: none;
+        filter: none;
       }
 
       .search-filter {
@@ -175,10 +214,15 @@
         gap: clamp(1.2rem, 2.4vw, 1.6rem);
       }
 
+      .exercise-list {
+        padding: clamp(1.2rem, 2.4vw, 1.6rem);
+      }
+
       .exercise-segment {
         background: var(--surface-strong);
         border-radius: var(--radius-large);
         box-shadow: var(--shadow-soft);
+        border: 1px solid var(--accent-border);
         padding: clamp(1.2rem, 2.4vw, 1.6rem);
         display: grid;
         gap: 1rem;
@@ -219,7 +263,8 @@
       }
 
       input,
-      textarea {
+      textarea,
+      select {
         width: 100%;
         padding: 0.75rem 1rem;
         border-radius: var(--radius-medium);
@@ -227,7 +272,7 @@
         background: rgba(255, 255, 255, 0.9);
         color: var(--text-primary);
         font-size: 1rem;
-        transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
       }
 
       textarea {
@@ -235,8 +280,23 @@
         min-height: 120px;
       }
 
+      select {
+        appearance: none;
+        background-image:
+          linear-gradient(45deg, transparent 50%, var(--accent-strong) 50%),
+          linear-gradient(135deg, var(--accent-strong) 50%, transparent 50%);
+        background-position:
+          calc(100% - 18px) calc(50% + 1px),
+          calc(100% - 12px) calc(50% + 1px);
+        background-size: 6px 6px;
+        background-repeat: no-repeat;
+        padding-right: 2.5rem;
+        cursor: pointer;
+      }
+
       input:focus-visible,
-      textarea:focus-visible {
+      textarea:focus-visible,
+      select:focus-visible {
         outline: none;
         border-color: rgba(61, 139, 255, 0.55);
         box-shadow: 0 0 0 4px rgba(61, 139, 255, 0.2);
@@ -260,6 +320,7 @@
         padding: 0.9rem 1.2rem;
         border-radius: var(--radius-medium);
         background: rgba(61, 139, 255, 0.1);
+        border: 1px solid var(--accent-border);
         color: var(--text-secondary);
         line-height: 1.4;
       }
@@ -267,16 +328,19 @@
       .status-area[data-type="error"] {
         background: rgba(231, 76, 60, 0.14);
         color: #a12315;
+        border-color: rgba(231, 76, 60, 0.35);
       }
 
       .status-area[data-type="warn"] {
         background: rgba(243, 156, 18, 0.18);
         color: #8c5a05;
+        border-color: rgba(243, 156, 18, 0.35);
       }
 
       .status-area[data-type="success"] {
         background: rgba(46, 204, 113, 0.18);
         color: #1f6f3a;
+        border-color: rgba(46, 204, 113, 0.35);
       }
 
       .hidden {
@@ -285,15 +349,20 @@
     </style>
   </head>
   <body>
-    <header>
-      <h1>Übungen verwalten</h1>
-      <nav>
-        <a href="./index.html" aria-label="Zurück zur Startseite">← Zurück</a>
-      </nav>
-    </header>
-
     <main>
-      <section class="toolbar" id="exerciseEditor">
+      <nav class="page-nav">
+        <a class="back-link" href="./index.html" aria-label="Zurück zur Startseite">← Zurück</a>
+      </nav>
+
+      <header class="card intro-card">
+        <h1>🛠️ Übungen verwalten</h1>
+        <p>
+          Bearbeite bestehende Stretching-Einheiten, ergänze neue Übungen und exportiere
+          deine Änderungen als JSON-Datei.
+        </p>
+      </header>
+
+      <section class="card toolbar" id="exerciseEditor">
         <div class="toolbar-actions">
           <button type="button" class="primary" id="addExerciseBtn">
             Neue Übung hinzufügen
@@ -314,9 +383,9 @@
         <div id="statusArea" class="status-area" role="status"></div>
       </section>
 
-      <section id="exerciseContainer"></section>
+      <section class="card exercise-list" id="exerciseContainer"></section>
 
-      <aside class="info-card">
+      <aside class="card info-card">
         <h2>Hinweis zum Deployment</h2>
         <p>
           Nach der Anpassung kannst du die heruntergeladene
@@ -327,6 +396,10 @@
         <p>
           Nutze die Suchfunktion, um schnell bestimmte Übungen zu finden, und
           klappe lange Anleitungen bei Bedarf über die Abschnittsköpfe ein.
+        </p>
+        <p>
+          Lege zudem fest, ob eine Übung im <strong>Achtsamkeitsmodus</strong> stattfindet
+          oder ob die <strong>Pausenglocke</strong> erklingen soll.
         </p>
       </aside>
     </main>
@@ -381,6 +454,24 @@
             <input name="rest_time" type="number" min="0" step="1" />
             <div class="validation-message hidden"></div>
           </div>
+          <div class="field">
+            <label>Achtsamkeitsmodus</label>
+            <select name="mindfulness">
+              <option value="">Nicht festgelegt</option>
+              <option value="yes">Ja</option>
+              <option value="no">Nein</option>
+            </select>
+            <div class="validation-message hidden"></div>
+          </div>
+          <div class="field">
+            <label>Pausenglocke</label>
+            <select name="break_bell">
+              <option value="">Nicht festgelegt</option>
+              <option value="yes">Aktiviert</option>
+              <option value="no">Deaktiviert</option>
+            </select>
+            <div class="validation-message hidden"></div>
+          </div>
         </div>
       </article>
     </template>
@@ -410,6 +501,8 @@
         rep_time: "",
         sets: "",
         rest_time: "",
+        mindfulness: "",
+        break_bell: "",
       });
 
       const setStatus = (message, type = "info") => {
@@ -451,25 +544,28 @@
       };
 
       const bindFieldValidation = (segment) => {
-        const inputs = segment.querySelectorAll("input, textarea");
+        const inputs = segment.querySelectorAll("input, textarea, select");
         inputs.forEach((input) => {
           input.addEventListener("blur", () => validateField(input));
-          input.addEventListener("input", () => {
-            if (input.getAttribute("aria-invalid") === "true") {
-              validateField(input);
-            }
-            if (input.name === "name") {
-              const heading = segment.querySelector(".segment-header h2");
-              heading.textContent = input.value
-                ? `Übung: ${input.value}`
-                : "Übung";
-            }
+          const updateEvents = input.tagName === "SELECT" ? ["change"] : ["input"];
+          updateEvents.forEach((eventName) => {
+            input.addEventListener(eventName, () => {
+              if (input.getAttribute("aria-invalid") === "true") {
+                validateField(input);
+              }
+              if (input.name === "name") {
+                const heading = segment.querySelector(".segment-header h2");
+                heading.textContent = input.value
+                  ? `Übung: ${input.value}`
+                  : "Übung";
+              }
+            });
           });
         });
       };
 
       const fillSegment = (segment, data) => {
-        const inputs = segment.querySelectorAll("input, textarea");
+        const inputs = segment.querySelectorAll("input, textarea, select");
         inputs.forEach((input) => {
           const value = data[input.name];
           if (value !== undefined && value !== null) {
@@ -532,7 +628,7 @@
         const errors = [];
 
         segments.forEach((segment, index) => {
-          const inputs = segment.querySelectorAll("input, textarea");
+          const inputs = segment.querySelectorAll("input, textarea, select");
           const entry = {};
           let isValid = true;
 
@@ -562,6 +658,11 @@
         const normalized = data.map((entry) => {
           const result = { ...entry };
           numberFields.forEach((field) => {
+            if (result[field] === "") {
+              delete result[field];
+            }
+          });
+          ["mindfulness", "break_bell"].forEach((field) => {
             if (result[field] === "") {
               delete result[field];
             }
