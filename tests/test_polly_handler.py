@@ -73,8 +73,13 @@ class FakePollyClient:
     def queue_describe(self, params: Dict[str, Any], response: Dict[str, Any]) -> None:
         self.describe_responses.append({"params": params, "response": response})
 
-    def queue_synthesize(self, params: Dict[str, Any], response: Dict[str, Any]) -> None:
-        self.synthesize_responses.append({"params": params, "response": response})
+    def queue_synthesize(self, params: Dict[str, Any], result: Any) -> None:
+        entry = {"params": params}
+        if isinstance(result, Exception):
+            entry["error"] = result
+        else:
+            entry["response"] = result
+        self.synthesize_responses.append(entry)
 
     def describe_voices(self, **kwargs: Any) -> Dict[str, Any]:
         if not self.describe_responses:
@@ -90,7 +95,15 @@ class FakePollyClient:
         expected = self.synthesize_responses.pop(0)
         assert kwargs == expected["params"], (kwargs, expected["params"])
         self.synthesize_calls.append(kwargs)
+        if "error" in expected:
+            raise expected["error"]
         return expected["response"]
+
+
+class FakeClientError(botocore_exceptions_stub.ClientError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.response = {"Error": {"Code": code, "Message": message}}
 
 
 class FakeAudioStream:
@@ -150,3 +163,37 @@ def test_synthesize_speech_keeps_standard_for_standard_voice() -> None:
     result = polly_handler._synthesize_speech("Hi", "de-DE", "Vicki")
 
     assert result == b"standard audio"
+
+
+def test_synthesize_speech_retries_with_neural_on_standard_failure() -> None:
+    fake_client = FakePollyClient()
+    fake_client.queue_describe({"VoiceId": "Daniel"}, {"Voices": [{"Id": "Daniel", "SupportedEngines": ["standard"]}]})
+    fake_client.queue_synthesize(
+        {
+            "Text": "Hallo",
+            "OutputFormat": "mp3",
+            "VoiceId": "Daniel",
+            "LanguageCode": "de-DE",
+        },
+        FakeClientError(
+            "InvalidParameterCombination",
+            "Standard engine is not supported for this voice. Please use neural.",
+        ),
+    )
+    fake_client.queue_synthesize(
+        {
+            "Text": "Hallo",
+            "OutputFormat": "mp3",
+            "VoiceId": "Daniel",
+            "LanguageCode": "de-DE",
+            "Engine": "neural",
+        },
+        {"AudioStream": FakeAudioStream(b"neural audio")},
+    )
+
+    polly_handler.polly = fake_client
+    boto3_stub.set_client(fake_client)
+
+    result = polly_handler._synthesize_speech("Hallo", "de-DE", "Daniel")
+
+    assert result == b"neural audio"

@@ -52,22 +52,90 @@ def _select_engine(voice: str) -> Optional[str]:
     return None
 
 
+def _should_retry_with_neural(error: ClientError, voice: str) -> bool:
+    """Determine whether retrying the request with the neural engine makes sense."""
+
+    error_response = getattr(error, "response", {}) or {}
+    error_info = error_response.get("Error") or {}
+    error_code = str(error_info.get("Code", "")).strip().lower()
+    error_message = str(error_info.get("Message", "")).strip().lower()
+    normalized_voice = voice.strip().lower()
+
+    if not normalized_voice:
+        return False
+
+    neural_hint_codes = {"invalidparametercombination", "enginenotsupportedexception"}
+    if error_code in neural_hint_codes:
+        return True
+
+    if "neural" in error_message:
+        return True
+
+    # Some AWS accounts report standard support even though only neural works.
+    if normalized_voice in {"daniel", "hannah", "vicki"}:
+        # Vicki is kept for completeness; the retry will only trigger on failures.
+        return True
+
+    return False
+
+
+def _invoke_polly(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Call Polly with the provided parameters."""
+
+    return polly.synthesize_speech(**params)
+
+
 def _synthesize_speech(text: str, language: str, voice: str) -> bytes:
     """Invoke Amazon Polly and return the generated audio as bytes."""
 
     engine = _select_engine(voice)
-    params = {
+    base_params = {
         "Text": text,
         "OutputFormat": "mp3",
         "VoiceId": voice,
         "LanguageCode": language,
     }
+    params = dict(base_params)
     if engine:
         params["Engine"] = engine
 
+    LOGGER.debug(
+        "Calling Polly: voice=%s language=%s engine=%s text_length=%d",
+        voice,
+        language,
+        params.get("Engine", "standard"),
+        len(text),
+    )
+
     try:
-        response = polly.synthesize_speech(**params)
-    except (BotoCoreError, ClientError) as exc:  # pragma: no cover - AWS client errors
+        response = _invoke_polly(params)
+    except ClientError as exc:  # pragma: no cover - AWS client errors
+        LOGGER.debug(
+            "Polly ClientError response: %s",
+            getattr(exc, "response", {}),
+            exc_info=True,
+        )
+        if not engine and _should_retry_with_neural(exc, voice):
+            retry_params = dict(base_params)
+            retry_params["Engine"] = "neural"
+            try:
+                LOGGER.info(
+                    "Retrying Polly request for voice %s with neural engine after failure.",
+                    voice,
+                )
+                response = _invoke_polly(retry_params)
+            except (BotoCoreError, ClientError) as retry_exc:  # pragma: no cover - AWS client errors
+                LOGGER.debug(
+                    "Retry Polly error response: %s",
+                    getattr(retry_exc, "response", {}),
+                    exc_info=True,
+                )
+                LOGGER.exception("Polly retry with neural engine failed")
+                raise HttpError(502, "Fehler bei der Sprachsynthese") from retry_exc
+        else:
+            LOGGER.exception("Polly request failed")
+            raise HttpError(502, "Fehler bei der Sprachsynthese") from exc
+    except BotoCoreError as exc:  # pragma: no cover - AWS client errors
         LOGGER.exception("Polly request failed")
         raise HttpError(502, "Fehler bei der Sprachsynthese") from exc
 
