@@ -375,22 +375,24 @@
       font-weight: 600;
       padding: 0.75rem 1rem;
       border-radius: 14px;
-      border: none;
+      border: 2px solid rgba(61, 139, 255, 0.45);
       cursor: pointer;
-      color: #fff;
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-      box-shadow: 0 12px 22px rgba(61, 139, 255, 0.28);
-      transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+      background: transparent;
+      color: var(--accent-strong);
+      box-shadow: none;
+      transition: background 0.2s ease, color 0.2s ease, transform 0.15s ease,
+        border-color 0.2s ease;
     }
 
     .stats-button:hover {
       transform: translateY(-1px);
-      filter: brightness(1.05);
+      background: rgba(61, 139, 255, 0.08);
+      border-color: rgba(61, 139, 255, 0.65);
     }
 
     .stats-button:active {
       transform: translateY(0);
-      filter: brightness(0.95);
+      background: rgba(61, 139, 255, 0.12);
     }
 
     .main-actions {
@@ -942,6 +944,25 @@
     const debugPanel = document.getElementById("debugPanel");
     const debugLog = document.getElementById("debugLog");
     const debugEntries = [];
+    const MEDIA_READY_STATE_LABELS = [
+      "HAVE_NOTHING",
+      "HAVE_METADATA",
+      "HAVE_CURRENT_DATA",
+      "HAVE_FUTURE_DATA",
+      "HAVE_ENOUGH_DATA",
+    ];
+    const MEDIA_NETWORK_STATE_LABELS = [
+      "NETWORK_EMPTY",
+      "NETWORK_IDLE",
+      "NETWORK_LOADING",
+      "NETWORK_NO_SOURCE",
+    ];
+    const MEDIA_ERROR_CODE_LABELS = {
+      1: "MEDIA_ERR_ABORTED",
+      2: "MEDIA_ERR_NETWORK",
+      3: "MEDIA_ERR_DECODE",
+      4: "MEDIA_ERR_SRC_NOT_SUPPORTED",
+    };
     const repProgressContainer = document.getElementById("repProgressContainer");
     const repProgressBar = document.getElementById("repProgressBar");
     const DEBUG_MAX_ENTRIES = 12;
@@ -1092,6 +1113,63 @@
         return;
       }
       debugLog.textContent = debugEntries.join("\n\n");
+    }
+
+    function buildMediaDebugDetails({ audio = null, error = null, reason = "" } = {}) {
+      const lines = [];
+      if (reason) {
+        lines.push(`Grund: ${reason}`);
+      }
+      if (error) {
+        lines.push(`Fehler: ${describeError(error)}`);
+        if (error && typeof error === "object") {
+          if (error.name && error.name !== "Error") {
+            lines.push(`Fehlertyp: ${error.name}`);
+          }
+          if (typeof error.code !== "undefined" && error.code !== null) {
+            const label = MEDIA_ERROR_CODE_LABELS[error.code] || "unbekannt";
+            lines.push(`Fehlercode: ${error.code}${label ? ` (${label})` : ""}`);
+          }
+        }
+      }
+
+      if (audio) {
+        try {
+          const readyStateLabel = MEDIA_READY_STATE_LABELS[audio.readyState] || "unbekannt";
+          const networkStateLabel = MEDIA_NETWORK_STATE_LABELS[audio.networkState] || "unbekannt";
+          const src = audio.currentSrc || audio.src || "";
+          lines.push(`readyState=${audio.readyState} (${readyStateLabel})`);
+          lines.push(`networkState=${audio.networkState} (${networkStateLabel})`);
+          lines.push(`currentSrc=${src || "<leer>"}`);
+          lines.push(`preload=${audio.preload || "<leer>"}`);
+          lines.push(`autoplay=${!!audio.autoplay}`);
+          lines.push(`muted=${audio.muted}`);
+          lines.push(`volume=${audio.volume}`);
+          lines.push(`paused=${audio.paused}`);
+          lines.push(`ended=${audio.ended}`);
+        } catch (stateError) {
+          lines.push(`Konnte Audio-Status nicht ermitteln: ${describeError(stateError)}`);
+        }
+
+        const mediaError = audio.error;
+        if (mediaError) {
+          if (typeof mediaError.code !== "undefined") {
+            const mediaErrorLabel = MEDIA_ERROR_CODE_LABELS[mediaError.code] || "unbekannt";
+            lines.push(
+              `mediaError.code=${mediaError.code}${
+                mediaErrorLabel ? ` (${mediaErrorLabel})` : ""
+              }`
+            );
+          }
+          if (mediaError.message) {
+            lines.push(`mediaError.message=${mediaError.message}`);
+          }
+        }
+      } else {
+        lines.push("Audio-Element nicht verfügbar.");
+      }
+
+      return lines.join("\n");
     }
 
     function setModalVisibility(modal, visible) {
@@ -1269,60 +1347,24 @@
       }
     }
 
-    async function playBreakBellFallbackCue() {
-      try {
-        const contextUnlocked = await unlockAudioContext();
-        if (!contextUnlocked) {
-          return;
-        }
-        if (!sharedAudioContext) {
-          const AudioContextCtor = getAudioContextConstructor();
-          if (!AudioContextCtor) {
-            return;
-          }
-          sharedAudioContext = new AudioContextCtor();
-        }
-        const context = sharedAudioContext;
-        if (!context) {
-          return;
-        }
-        if (context.state === "suspended") {
-          await context.resume();
-        }
-        const startTime = context.currentTime + 0.05;
-        const duration = 1.4;
-        const gain = context.createGain();
-        gain.gain.setValueAtTime(0, context.currentTime);
-        gain.gain.linearRampToValueAtTime(0.4, startTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
-        const oscillator = context.createOscillator();
-        oscillator.type = "sine";
-        oscillator.frequency.setValueAtTime(660, startTime);
-        oscillator.frequency.exponentialRampToValueAtTime(330, startTime + duration);
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.addEventListener("ended", () => {
-          try {
-            oscillator.disconnect();
-          } catch (_err) {}
-          try {
-            gain.disconnect();
-          } catch (_err) {}
-        });
-        oscillator.start(startTime);
-        oscillator.stop(startTime + duration + 0.1);
-      } catch (error) {
-        appendDebug("Klangschale konnte nicht abgespielt werden.", describeError(error));
-      }
-    }
-
     async function playBreakBellCue() {
       const unlocked = await ensureAudioUnlocked().catch(() => false);
       if (!unlocked) {
-        if (lastAudioUnlockError) {
-          appendDebug("Klangschale konnte nicht abgespielt werden.", lastAudioUnlockError);
-        }
-        await playBreakBellFallbackCue();
+        const baseReason =
+          lastAudioUnlockError ||
+          "Audiowiedergabe ist nicht freigeschaltet. Nutzerinteraktion erforderlich.";
+        const reason = `${baseReason} (audioUnlocked=${audioUnlocked})`;
+        const audioElement =
+          typeof Audio !== "undefined"
+            ? breakBellAudioElement || getBreakBellAudioElement()
+            : null;
+        appendDebug(
+          "Klangschale konnte nicht abgespielt werden.",
+          buildMediaDebugDetails({
+            audio: audioElement,
+            reason,
+          })
+        );
         return;
       }
 
@@ -1344,8 +1386,18 @@
           await playPromise;
         }
       } catch (error) {
-        appendDebug("Klangschale konnte nicht abgespielt werden.", describeError(error));
-        await playBreakBellFallbackCue();
+        const audioForDebug =
+          typeof Audio !== "undefined"
+            ? breakBellAudioElement || getBreakBellAudioElement()
+            : null;
+        appendDebug(
+          "Klangschale konnte nicht abgespielt werden.",
+          buildMediaDebugDetails({
+            audio: audioForDebug,
+            error,
+            reason: "Wiedergabe fehlgeschlagen",
+          })
+        );
       }
     }
 
