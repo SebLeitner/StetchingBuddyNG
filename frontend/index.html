@@ -2489,19 +2489,67 @@
       });
 
     // --- Übungen laden ---
-    fetch("exercises.json")
-      .then(res => res.json())
-      .then(data => {
-        exercises = data;
-        select.innerHTML = data.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
-        exercise = exercises[0] ?? null;
-        applyBreakBellPreset(exercise);
-        updateExerciseOverview(exercise);
-        resetSessionUI();
-        if (openSessionBtn) {
-          openSessionBtn.disabled = exercises.length === 0;
-        }
+    const exercisesApiUrl = (window.STRETCH_COACH_CONFIG || {}).exercisesApiUrl;
+
+    const isTestExerciseId = id => {
+      if (!id) {
+        return false;
+      }
+      const normalized = String(id).trim().toLowerCase();
+      return normalized === "test" || normalized === "test übung" || normalized === "testübung";
+    };
+
+    const normalizeExercises = data => {
+      if (!data) {
+        return [];
+      }
+      if (Array.isArray(data)) {
+        return data;
+      }
+      if (Array.isArray(data.items)) {
+        return data.items;
+      }
+      return [];
+    };
+
+    const loadExercisesFromUrl = url =>
+      fetch(url, {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
       })
+        .then(res => {
+          if (!res.ok) {
+            throw new Error(`HTTP ${res.status}`);
+          }
+          return res.json();
+        })
+        .then(normalizeExercises);
+
+    const populateExercises = list => {
+      exercises = list.filter(entry => entry && typeof entry.id === "string" && !isTestExerciseId(entry.id));
+      select.innerHTML = exercises.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
+      exercise = exercises[0] ?? null;
+      applyBreakBellPreset(exercise);
+      updateExerciseOverview(exercise);
+      resetSessionUI();
+      if (openSessionBtn) {
+        openSessionBtn.disabled = exercises.length === 0;
+      }
+    };
+
+    const fallbackToStaticFile = error => {
+      if (error) {
+        console.warn("Primärer Abruf der Übungen fehlgeschlagen, versuche Fallback", error);
+      }
+      return loadExercisesFromUrl("exercises.json");
+    };
+
+    const exercisePromise = exercisesApiUrl
+      ? loadExercisesFromUrl(exercisesApiUrl).catch(fallbackToStaticFile)
+      : fallbackToStaticFile();
+
+    exercisePromise
+      .then(populateExercises)
       .catch(err => {
         console.error("Fehler beim Laden der Übungen", err);
         select.innerHTML = "<option>Fehler beim Laden</option>";

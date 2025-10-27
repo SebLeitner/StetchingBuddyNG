@@ -40,8 +40,9 @@ self.addEventListener('fetch', event => {
   const isHtml = request.mode === 'navigate' || request.destination === 'document' || accept.includes('text/html');
   const wantsJson = accept.includes('application/json') || accept.includes('text/json');
   const isJsonUrl = request.url.endsWith('.json');
+  const isApiRequest = request.url.includes('/api/');
 
-  if (isHtml || wantsJson || isJsonUrl) {
+  if (isHtml || wantsJson || isJsonUrl || isApiRequest) {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
         .then(networkResponse => {

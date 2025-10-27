@@ -21,3 +21,7 @@ output "speech_lambda_arn" {
 output "exercise_completion_api_url" {
   value = "${trim(aws_apigatewayv2_stage.speech.invoke_url, "/")}/api/exercise-completions"
 }
+
+output "exercises_api_url" {
+  value = "${trim(aws_apigatewayv2_stage.speech.invoke_url, "/")}/api/exercises"
+}

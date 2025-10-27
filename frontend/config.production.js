@@ -9,6 +9,7 @@
     cloudFrontDomain: "d1spztj11put9r.cloudfront.net",
     speechApiUrl: "https://hr9yi4qsmg.execute-api.us-east-1.amazonaws.com/api/speak",
     progressApiUrl: "https://hr9yi4qsmg.execute-api.us-east-1.amazonaws.com/api/exercise-completions",
+    exercisesApiUrl: "https://hr9yi4qsmg.execute-api.us-east-1.amazonaws.com/api/exercises",
     speechLambdaArn: "arn:aws:lambda:us-east-1:140023375269:function:stretch-coach-speech",
   });
 })();
