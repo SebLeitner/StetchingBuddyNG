@@ -389,7 +389,7 @@ resource "aws_apigatewayv2_api" "speech" {
       "X-Amz-Security-Token",
       "X-Api-Key"
     ]
-    allow_methods     = ["OPTIONS", "POST", "GET"]
+    allow_methods     = ["OPTIONS", "GET", "POST", "PUT", "DELETE"]
     allow_origins     = ["https://sbuddy.leitnersoft.com"]
     max_age           = 3600
   }
