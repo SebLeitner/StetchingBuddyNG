@@ -26,6 +26,20 @@ Dieses Repository enthält die statische Stretch-Coach-Anwendung sowie die Infra
 
 Die Lambda-Funktion akzeptiert auch JSON-Antworten von Polly-Tasks (z. B. `audioUrl` oder `audioBase64`) für zukünftige Erweiterungen.
 
+## Exercises API Contract
+
+- **Basis-URL**: `${APIGATEWAY_INVOKE_URL}/api/exercises`
+- **Antwortformat**: Alle Endpunkte liefern JSON mit CORS-Headern. Fehler werden als `{ "error": "…" }` ausgegeben.
+- **Endpunkte**:
+  - `GET /api/exercises`: Liefert `{ "items": [ … ], "count": <number> }` ohne Test-Übungen.
+  - `GET /api/exercises/{id}`: Einzelne Übung nach `id`.
+  - `POST /api/exercises`: Legt eine neue Übung an. Pflichtfelder: `id`, `name`, `instruction`, `sets` (>= 1). Optionale Felder wie `prep_time`, `duration`, `rep_time`, `rest_time`, `mindfulness`, `break_bell` werden übernommen, leere Strings werden ignoriert.
+  - `PUT /api/exercises/{id}`: Aktualisiert eine bestehende Übung. Ein optionales Feld `previousId` erlaubt das Umbenennen (Ändern der `id`).
+  - `DELETE /api/exercises/{id}`: Löscht eine Übung. "Test"-IDs werden serverseitig abgefangen.
+- **Validierungsregeln**: Numerische Felder müssen Ganzzahlen sein (`sets` > 0, übrige Werte >= 0). Test-Übungen (`test`, `test übung`, `testübung`) werden weder gespeichert noch ausgeliefert.
+
+Zur Erstbefüllung dient `scripts/import_exercises.py`, das die bestehende `frontend/exercises.json` in die neue DynamoDB-Tabelle schreibt (`python scripts/import_exercises.py --table <TABELLE>`).
+
 ## Frontend-Integration
 
 - Die Funktion `speak()` in `frontend/index.html` ruft den Speech-Endpunkt auf, lädt das MP3 als Blob und spielt es über ein `Audio`-Objekt ab.
@@ -41,6 +55,9 @@ Die Lambda-Funktion akzeptiert auch JSON-Antworten von Polly-Tasks (z. B. `audio
   };
   ```
   Lokale Tests können weiterhin ein eigenes `window.STRETCH_COACH_CONFIG` setzen; es überschreibt die Werte aus der Produktionsdatei.
+  Neue Parameter:
+  - `progressApiUrl`: Endpunkt für Übungsfortschrittsdaten (`/api/exercise-completions`).
+  - `exercisesApiUrl`: Endpunkt für den Übungskatalog (`/api/exercises`).
 
 ## Infrastruktur & Deployment
 

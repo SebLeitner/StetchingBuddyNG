@@ -237,6 +237,16 @@
         gap: 1rem;
       }
 
+      .segment-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .segment-actions button {
+        white-space: nowrap;
+      }
+
       .segment-header h2 {
         margin: 0;
         font-size: 1.2rem;
@@ -390,10 +400,9 @@
       <aside class="card info-card">
         <h2>Hinweis zum Deployment</h2>
         <p>
-          Nach der Anpassung kannst du die heruntergeladene
-          <code>exercises.json</code> im Ordner <code>frontend/</code> ersetzen
-          und in das Repository committen. Bei Bedarf lassen sich Änderungen
-          über Pull Requests überprüfen und veröffentlichen.
+          Mit <strong>Speichern</strong> werden Änderungen direkt an die Exercises-API
+          übertragen. Der JSON-Export dient als Sicherung oder zur Migration in
+          andere Umgebungen (z. B. mittels <code>scripts/import_exercises.py</code>).
         </p>
         <p>
           Nutze die Suchfunktion, um schnell bestimmte Übungen zu finden, und
@@ -410,7 +419,11 @@
       <article class="exercise-segment" data-visible="true">
         <div class="segment-header">
           <h2>Übung</h2>
-          <button type="button" class="danger delete-btn">Übung löschen</button>
+          <div class="segment-actions">
+            <button type="button" class="secondary duplicate-btn">Duplizieren</button>
+            <button type="button" class="primary save-btn">Speichern</button>
+            <button type="button" class="danger delete-btn">Löschen</button>
+          </div>
         </div>
         <div class="field-grid">
           <div class="field">
@@ -478,7 +491,13 @@
       </article>
     </template>
 
+    <script src="./config.production.js"></script>
     <script>
+      const config = window.STRETCH_COACH_CONFIG || {};
+      const rawExercisesApiUrl = (config.exercisesApiUrl || "").trim();
+      const exercisesApiUrl = rawExercisesApiUrl.replace(/\/$/, "");
+      const hasApi = Boolean(exercisesApiUrl);
+
       const exerciseContainer = document.getElementById("exerciseContainer");
       const template = document.getElementById("exerciseTemplate");
       const addBtn = document.getElementById("addExerciseBtn");
@@ -507,9 +526,63 @@
         break_bell: "",
       });
 
+      const joinApiUrl = (suffix = "") => {
+        if (!suffix) {
+          return exercisesApiUrl;
+        }
+        return `${exercisesApiUrl}/${suffix.replace(/^\//, "")}`;
+      };
+
+      const isTestExerciseId = (id) => {
+        if (!id) {
+          return false;
+        }
+        const normalized = String(id).trim().toLowerCase();
+        return (
+          normalized === "test" ||
+          normalized === "test übung" ||
+          normalized === "testübung"
+        );
+      };
+
       const setStatus = (message, type = "info") => {
         statusArea.textContent = message;
         statusArea.dataset.type = type;
+      };
+
+      const apiRequest = async (method, path = "", payload) => {
+        if (!hasApi) {
+          throw new Error("Es wurde kein Exercises-API-Endpunkt konfiguriert.");
+        }
+        const url = path ? joinApiUrl(path) : exercisesApiUrl;
+        const options = {
+          method,
+          cache: "no-store",
+          headers: {
+            Accept: "application/json",
+          },
+        };
+        if (payload !== undefined) {
+          options.headers["Content-Type"] = "application/json";
+          options.body = JSON.stringify(payload);
+        }
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          let message = `Fehler ${response.status}`;
+          try {
+            const errorBody = await response.json();
+            if (errorBody && typeof errorBody.error === "string") {
+              message = errorBody.error;
+            }
+          } catch (parseError) {
+            // ignorieren, Fallback oben verwenden
+          }
+          throw new Error(message);
+        }
+        if (response.status === 204) {
+          return null;
+        }
+        return response.json();
       };
 
       const validateField = (input) => {
@@ -527,6 +600,8 @@
             error = "Bitte eine gültige Zahl eingeben.";
           } else if (numberValue < 0) {
             error = "Der Wert darf nicht negativ sein.";
+          } else if (input.name === "sets" && numberValue < 1) {
+            error = "Bitte mindestens 1 angeben.";
           }
         }
 
@@ -549,7 +624,7 @@
         const inputs = segment.querySelectorAll("input, textarea, select");
         inputs.forEach((input) => {
           input.addEventListener("blur", () => validateField(input));
-          const updateEvents = input.tagName === "SELECT" ? ["change"] : ["input"];
+          const updateEvents = input.tagName === "SELECT" ? ["change"] : ["input", "change"];
           updateEvents.forEach((eventName) => {
             input.addEventListener(eventName, () => {
               if (input.getAttribute("aria-invalid") === "true") {
@@ -561,6 +636,7 @@
                   ? `Übung: ${input.value}`
                   : "Übung";
               }
+              segment.dataset.dirty = "true";
             });
           });
         });
@@ -570,33 +646,165 @@
         const inputs = segment.querySelectorAll("input, textarea, select");
         inputs.forEach((input) => {
           const value = data[input.name];
-          if (value !== undefined && value !== null) {
-            input.value = value;
-          }
+          input.value = value !== undefined && value !== null ? value : "";
         });
 
         const nameInput = segment.querySelector('input[name="name"]');
-        if (nameInput && nameInput.value) {
-          segment.querySelector(".segment-header h2").textContent =
-            "Übung: " + nameInput.value;
+        if (nameInput) {
+          const heading = segment.querySelector(".segment-header h2");
+          heading.textContent = nameInput.value
+            ? `Übung: ${nameInput.value}`
+            : "Übung";
         }
       };
 
-      const addExerciseSegment = (data = defaultExercise()) => {
-        const fragment = template.content.cloneNode(true);
-        const segment = fragment.querySelector(".exercise-segment");
-        bindFieldValidation(segment);
+      const toggleSegmentBusy = (segment, busy) => {
+        const controls = segment.querySelectorAll("button, input, textarea, select");
+        controls.forEach((control) => {
+          control.disabled = busy;
+        });
+      };
 
-        const deleteBtn = segment.querySelector(".delete-btn");
-        deleteBtn.addEventListener("click", () => {
-          segment.remove();
-          setStatus("Übung entfernt. Vergiss nicht zu speichern.", "info");
-          filterSegments(searchInput.value);
+      const collectSegmentExercise = (segment) => {
+        const inputs = segment.querySelectorAll("input, textarea, select");
+        const entry = {};
+        let isValid = true;
+
+        inputs.forEach((input) => {
+          const ok = validateField(input);
+          if (!ok) {
+            isValid = false;
+          }
+          let value = input.value.trim();
+          if (numberFields.includes(input.name)) {
+            value = value === "" ? "" : Number(value);
+          }
+          entry[input.name] = value;
         });
 
+        if (!isValid) {
+          const label = entry.name || entry.id || "ohne Namen";
+          throw new Error(`Bitte Eingaben in der Übung „${label}" korrigieren.`);
+        }
+
+        const normalized = { ...entry };
+        numberFields.forEach((field) => {
+          if (normalized[field] === "" || normalized[field] === undefined) {
+            delete normalized[field];
+          } else {
+            normalized[field] = Number(normalized[field]);
+          }
+        });
+        ["mindfulness", "break_bell"].forEach((field) => {
+          if (!normalized[field]) {
+            delete normalized[field];
+          }
+        });
+        return normalized;
+      };
+
+      const readSegmentValues = (segment) => {
+        const inputs = segment.querySelectorAll("input, textarea, select");
+        const entry = defaultExercise();
+        inputs.forEach((input) => {
+          entry[input.name] = input.value;
+        });
+        return entry;
+      };
+
+      const setSegmentPersisted = (segment, item) => {
+        segment.dataset.persisted = "true";
+        segment.dataset.originalId = item.id || "";
+        segment.dataset.dirty = "false";
+        fillSegment(segment, defaultExercise());
+        fillSegment(segment, item);
+      };
+
+      const attachSegmentActions = (segment) => {
+        const deleteBtn = segment.querySelector(".delete-btn");
+        const saveBtn = segment.querySelector(".save-btn");
+        const duplicateBtn = segment.querySelector(".duplicate-btn");
+
+        saveBtn.addEventListener("click", async () => {
+          try {
+            const payload = collectSegmentExercise(segment);
+            toggleSegmentBusy(segment, true);
+            if (segment.dataset.persisted === "true") {
+              const previousId = segment.dataset.originalId || payload.id;
+              const body = { ...payload };
+              if (previousId && previousId !== payload.id) {
+                body.previousId = previousId;
+              }
+              const response = await apiRequest("PUT", previousId, body);
+              const saved = response?.item || payload;
+              setSegmentPersisted(segment, saved);
+              setStatus(`Übung „${saved.name || saved.id}" aktualisiert.`, "success");
+            } else {
+              const response = await apiRequest("POST", "", payload);
+              const saved = response?.item || payload;
+              setSegmentPersisted(segment, saved);
+              setStatus(`Übung „${saved.name || saved.id}" gespeichert.`, "success");
+            }
+          } catch (error) {
+            console.error(error);
+            setStatus(error.message || "Speichern fehlgeschlagen.", "error");
+          } finally {
+            toggleSegmentBusy(segment, false);
+            filterSegments(searchInput.value);
+          }
+        });
+
+        deleteBtn.addEventListener("click", async () => {
+          const name = segment.querySelector('input[name="name"]').value || segment.querySelector('input[name="id"]').value;
+          if (segment.dataset.persisted === "true") {
+            const originalId = segment.dataset.originalId;
+            const confirmed = window.confirm(
+              `Möchtest du die Übung „${name || originalId}" wirklich löschen?`
+            );
+            if (!confirmed) {
+              return;
+            }
+            try {
+              toggleSegmentBusy(segment, true);
+              await apiRequest("DELETE", originalId);
+              segment.remove();
+              setStatus(`Übung „${name || originalId}" wurde gelöscht.`, "success");
+            } catch (error) {
+              console.error(error);
+              setStatus(error.message || "Löschen fehlgeschlagen.", "error");
+            } finally {
+              toggleSegmentBusy(segment, false);
+              filterSegments(searchInput.value);
+            }
+          } else {
+            segment.remove();
+            setStatus("Nicht gespeicherte Übung verworfen.", "info");
+            filterSegments(searchInput.value);
+          }
+        });
+
+        duplicateBtn.addEventListener("click", () => {
+          const values = readSegmentValues(segment);
+          const copy = { ...values };
+          copy.id = values.id ? `${values.id}-copy` : "";
+          const newSegment = addExerciseSegment(copy, false);
+          setStatus("Übung dupliziert. Bitte neue ID vergeben und speichern.", "info");
+          newSegment.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      };
+
+      const addExerciseSegment = (data = defaultExercise(), persisted = false) => {
+        const fragment = template.content.cloneNode(true);
+        const segment = fragment.querySelector(".exercise-segment");
+        segment.dataset.persisted = persisted ? "true" : "false";
+        segment.dataset.originalId = persisted && data.id ? data.id : "";
+        segment.dataset.dirty = persisted ? "false" : "true";
+        bindFieldValidation(segment);
+        attachSegmentActions(segment);
         fillSegment(segment, data);
         exerciseContainer.appendChild(fragment);
         filterSegments(searchInput.value);
+        return segment;
       };
 
       const filterSegments = (searchTerm) => {
@@ -626,53 +834,12 @@
           throw new Error("Keine Übungen vorhanden. Bitte erst welche hinzufügen.");
         }
 
-        const data = [];
-        const errors = [];
-
-        segments.forEach((segment, index) => {
-          const inputs = segment.querySelectorAll("input, textarea, select");
-          const entry = {};
-          let isValid = true;
-
-          inputs.forEach((input) => {
-            const ok = validateField(input);
-            if (!ok) {
-              isValid = false;
-            }
-            let value = input.value.trim();
-            if (numberFields.includes(input.name)) {
-              value = value === "" ? "" : Number(value);
-            }
-            entry[input.name] = value;
-          });
-
-          if (!isValid) {
-            errors.push(`Bitte Eingaben in Übung ${index + 1} korrigieren.`);
-          }
-
-          data.push(entry);
+        const results = [];
+        segments.forEach((segment) => {
+          const data = collectSegmentExercise(segment);
+          results.push(data);
         });
-
-        if (errors.length) {
-          throw new Error(errors.join(" "));
-        }
-
-        const normalized = data.map((entry) => {
-          const result = { ...entry };
-          numberFields.forEach((field) => {
-            if (result[field] === "") {
-              delete result[field];
-            }
-          });
-          ["mindfulness", "break_bell"].forEach((field) => {
-            if (result[field] === "") {
-              delete result[field];
-            }
-          });
-          return result;
-        });
-
-        return normalized;
+        return results;
       };
 
       const downloadJson = (entries) => {
@@ -691,41 +858,55 @@
       };
 
       const loadExercises = async () => {
+        exerciseContainer.innerHTML = "";
+        if (!hasApi) {
+          addExerciseSegment();
+          setStatus(
+            "Es ist kein Exercises-API-Endpunkt konfiguriert. Arbeiten im Offline-Modus.",
+            "warn"
+          );
+          filterSegments(searchInput.value);
+          return;
+        }
+
         try {
           setStatus("Lade vorhandene Daten…");
-          const response = await fetch("./exercises.json");
-          if (!response.ok) {
-            throw new Error(
-              `Fehler beim Laden der Daten (Status ${response.status}).`
-            );
-          }
-          const data = await response.json();
-          const list = Array.isArray(data) ? data : [];
-          exerciseContainer.innerHTML = "";
-          if (!list.length) {
+          const response = await apiRequest("GET");
+          const list = Array.isArray(response?.items) ? response.items : [];
+          const sanitized = list
+            .filter(
+              (entry) =>
+                entry &&
+                typeof entry.id === "string" &&
+                !isTestExerciseId(entry.id)
+            )
+            .sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
+          if (!sanitized.length) {
             addExerciseSegment();
             setStatus(
               "Es wurden keine Übungen gefunden. Du kannst neue hinzufügen.",
               "warn"
             );
           } else {
-            list.forEach((entry) => addExerciseSegment(entry));
-            setStatus(`Es wurden ${list.length} Übungen geladen.`, "success");
+            sanitized.forEach((entry) => addExerciseSegment(entry, true));
+            setStatus(`Es wurden ${sanitized.length} Übungen geladen.`, "success");
           }
-          filterSegments(searchInput.value);
         } catch (error) {
           console.error(error);
+          addExerciseSegment();
           setStatus(
             "Übungen konnten nicht geladen werden. Du kannst trotzdem neue hinzufügen.",
             "error"
           );
-          addExerciseSegment();
+        } finally {
+          filterSegments(searchInput.value);
         }
       };
 
       addBtn.addEventListener("click", () => {
-        addExerciseSegment();
+        const segment = addExerciseSegment();
         setStatus("Neue Übung hinzugefügt.", "success");
+        segment.scrollIntoView({ behavior: "smooth", block: "start" });
       });
 
       downloadBtn.addEventListener("click", () => {
