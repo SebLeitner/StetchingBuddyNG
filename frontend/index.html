@@ -673,6 +673,45 @@
       gap: 0.75rem;
     }
 
+    .rep-selection {
+      display: grid;
+      gap: 0.45rem;
+      padding: 0.85rem 1rem;
+      border-radius: 18px;
+      background: rgba(61, 139, 255, 0.08);
+      border: 1px solid rgba(61, 139, 255, 0.15);
+    }
+
+    .rep-selection__label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      gap: 0.75rem;
+    }
+
+    .rep-selection__value {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rep-selection input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-strong);
+    }
+
+    .rep-selection input[type="range"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .rep-selection[data-disabled="true"] {
+      opacity: 0.65;
+    }
+
     .session-display {
       min-height: 3.2rem;
       display: flex;
@@ -831,6 +870,26 @@
           <div class="progress-container" id="repProgressContainer" hidden>
             <div class="progress-bar" id="repProgressBar" aria-hidden="true"></div>
           </div>
+          <div
+            class="rep-selection"
+            id="repSelectionSection"
+            role="group"
+            aria-labelledby="repCountLabel"
+            hidden
+          >
+            <div class="rep-selection__label" id="repCountLabel">
+              <span>Wiederholungen pro Satz</span>
+              <span class="rep-selection__value" id="repCountValue">0</span>
+            </div>
+            <input
+              type="range"
+              id="repCountSlider"
+              min="1"
+              step="1"
+              value="1"
+              aria-labelledby="repCountLabel"
+            />
+          </div>
         </section>
         <p id="sessionSummary" class="session-summary" hidden></p>
       </div>
@@ -915,6 +974,9 @@
     const closeExerciseDetailsBtn = document.getElementById("closeExerciseDetailsBtn");
     const breakBellToggle = document.getElementById("breakBellToggle");
     const breakBellState = document.getElementById("breakBellState");
+    const repSelectionSection = document.getElementById("repSelectionSection");
+    const repCountSlider = document.getElementById("repCountSlider");
+    const repCountValue = document.getElementById("repCountValue");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -923,6 +985,9 @@
     let voiceMode = "auto";
     let exercises = [];
     let exercise = null;
+    let selectedRepCount = null;
+    let activeRepCount = null;
+    let repSelectionExerciseId = null;
     let mindfulnessPrompts = [];
     let mindfulnessPromptActive = false;
     let skipRequested = false;
@@ -1280,7 +1345,107 @@
       return !!(breakBellToggle && breakBellToggle.checked);
     }
 
-    function updateExerciseOverview(ex) {
+    function parseExerciseRepCount(ex) {
+      if (!ex) {
+        return null;
+      }
+      const raw = Number(ex.duration);
+      if (!Number.isFinite(raw)) {
+        return null;
+      }
+      const value = Math.trunc(raw);
+      return value > 0 ? value : null;
+    }
+
+    function refreshRepSelectionLabel(current, max) {
+      if (!repCountValue) return;
+      if (Number.isInteger(max) && max > 0) {
+        repCountValue.textContent = `${current} von ${max}`;
+      } else {
+        repCountValue.textContent = `${current}`;
+      }
+    }
+
+    function setRepSelectionDisabled(disabled) {
+      if (repCountSlider) {
+        repCountSlider.disabled = !!disabled;
+      }
+      if (repSelectionSection) {
+        repSelectionSection.dataset.disabled = disabled ? "true" : "false";
+      }
+    }
+
+    function updateRepSelection(ex, { resetToDefault = false } = {}) {
+      if (!repSelectionSection || !repCountSlider || !repCountValue) {
+        selectedRepCount = null;
+        repSelectionExerciseId = null;
+        return;
+      }
+
+      const exerciseId = ex && ex.id ? String(ex.id) : null;
+      const defaultCount = parseExerciseRepCount(ex);
+
+      if (!defaultCount) {
+        repSelectionSection.hidden = true;
+        selectedRepCount = null;
+        repSelectionExerciseId = exerciseId;
+        activeRepCount = null;
+        setRepSelectionDisabled(true);
+        return;
+      }
+
+      repSelectionSection.hidden = false;
+      repCountSlider.min = "1";
+      repCountSlider.max = String(defaultCount);
+      repCountSlider.step = "1";
+
+      const isDifferentExercise = exerciseId !== repSelectionExerciseId;
+      repSelectionExerciseId = exerciseId;
+
+      const shouldReset =
+        resetToDefault ||
+        isDifferentExercise ||
+        !Number.isInteger(selectedRepCount) ||
+        selectedRepCount < 1;
+
+      let value = shouldReset
+        ? defaultCount
+        : Math.max(1, Math.min(selectedRepCount, defaultCount));
+
+      selectedRepCount = value;
+      repCountSlider.value = String(value);
+      setRepSelectionDisabled(sessionRunning);
+      refreshRepSelectionLabel(value, defaultCount);
+    }
+
+    function getConfiguredRepCount(ex) {
+      const defaultCount = parseExerciseRepCount(ex);
+      if (!defaultCount) {
+        return 0;
+      }
+      const sliderValue = repCountSlider ? Number(repCountSlider.value) : NaN;
+      if (Number.isInteger(sliderValue) && sliderValue >= 1) {
+        return Math.max(1, Math.min(sliderValue, defaultCount));
+      }
+      if (Number.isInteger(selectedRepCount) && selectedRepCount >= 1) {
+        return Math.max(1, Math.min(selectedRepCount, defaultCount));
+      }
+      return defaultCount;
+    }
+
+    function getSessionRepCount() {
+      const defaultCount = parseExerciseRepCount(exercise);
+      if (Number.isInteger(activeRepCount) && activeRepCount > 0) {
+        return activeRepCount;
+      }
+      if (Number.isInteger(selectedRepCount) && selectedRepCount > 0 && defaultCount) {
+        return Math.max(1, Math.min(selectedRepCount, defaultCount));
+      }
+      return defaultCount || 0;
+    }
+
+    function updateExerciseOverview(ex, { resetRepSelection = false } = {}) {
+      updateRepSelection(ex, { resetToDefault: resetRepSelection });
       if (exerciseModalTitle) {
         exerciseModalTitle.textContent = ex && ex.name ? ex.name : "Übung";
       }
@@ -1497,6 +1662,9 @@
         sessionSummary.textContent = "";
       }
       resetProgress();
+      activeRepCount = null;
+      setRepSelectionDisabled(false);
+      updateRepSelection(exercise, { resetToDefault: false });
       if (display) {
         const preview = buildInstructionSpeech(exercise);
         display.textContent = preview || (exercise && exercise.name ? exercise.name : "Bereit?");
@@ -1509,6 +1677,18 @@
       pauseAwaitingResume = false;
       pauseResumeResolver = null;
       pauseContext = null;
+      const defaultRepCount = parseExerciseRepCount(exercise);
+      activeRepCount = getConfiguredRepCount(exercise);
+      if (activeRepCount > 0) {
+        selectedRepCount = activeRepCount;
+      }
+      if (repCountSlider && activeRepCount > 0) {
+        repCountSlider.value = String(activeRepCount);
+      }
+      setRepSelectionDisabled(true);
+      if (defaultRepCount) {
+        refreshRepSelectionLabel(activeRepCount > 0 ? activeRepCount : defaultRepCount, defaultRepCount);
+      }
       resetProgress();
       if (startBtn) {
         startBtn.disabled = true;
@@ -1548,6 +1728,9 @@
         sessionControls.hidden = true;
       }
       resetProgress();
+      activeRepCount = null;
+      setRepSelectionDisabled(false);
+      updateRepSelection(exercise, { resetToDefault: false });
       if (startBtn) {
         startBtn.hidden = false;
         startBtn.disabled = false;
@@ -1837,6 +2020,26 @@
         );
       });
     });
+
+    if (repCountSlider) {
+      repCountSlider.addEventListener("input", () => {
+        const defaultCount = parseExerciseRepCount(exercise);
+        if (!defaultCount) {
+          return;
+        }
+        let value = Math.round(Number(repCountSlider.value));
+        if (!Number.isInteger(value)) {
+          value = defaultCount;
+        }
+        value = Math.max(1, Math.min(value, defaultCount));
+        repCountSlider.value = String(value);
+        selectedRepCount = value;
+        if (!sessionRunning) {
+          activeRepCount = null;
+        }
+        refreshRepSelectionLabel(value, defaultCount);
+      });
+    }
 
     if (breakBellToggle) {
       breakBellToggle.addEventListener("change", () => {
@@ -2522,7 +2725,7 @@
       select.innerHTML = exercises.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
       exercise = exercises[0] ?? null;
       applyBreakBellPreset(exercise);
-      updateExerciseOverview(exercise);
+      updateExerciseOverview(exercise, { resetRepSelection: true });
       resetSessionUI();
       if (openSessionBtn) {
         openSessionBtn.disabled = exercises.length === 0;
@@ -2645,7 +2848,8 @@
         await speak("Weiter mit dem nächsten Satz. Los!");
       }
 
-      for (let i = 1; i <= exercise.duration && !aborted; i++) {
+      const repsPerSet = Math.max(0, getSessionRepCount());
+      for (let i = 1; i <= repsPerSet && !aborted; i++) {
         display.textContent = `Wiederholung ${i}`;
         await runRepTimer(exercise.rep_time);
         if (aborted) break;
@@ -2925,7 +3129,7 @@
       const id = select.value;
       exercise = exercises.find(e => e.id === id) ?? null;
       applyBreakBellPreset(exercise);
-      updateExerciseOverview(exercise);
+      updateExerciseOverview(exercise, { resetRepSelection: true });
       if (openSessionBtn) {
         openSessionBtn.disabled = !exercise;
       }
