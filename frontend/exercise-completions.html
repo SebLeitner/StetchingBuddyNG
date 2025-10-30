@@ -232,6 +232,36 @@
         display: block;
       }
 
+      #streakChart {
+        width: 100%;
+        height: 260px;
+        display: block;
+      }
+
+      .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        margin-bottom: 1rem;
+      }
+
+      .chart-legend__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+        background: rgba(61, 139, 255, 0.08);
+        border-radius: 999px;
+        padding: 0.35rem 0.7rem;
+      }
+
+      .chart-legend__swatch {
+        width: 12px;
+        height: 12px;
+        border-radius: 999px;
+      }
+
       .table-header {
         padding: 1.6rem 1.8rem 0.8rem;
       }
@@ -410,12 +440,63 @@
       <section class="card chart-card">
         <div class="chart-header">
           <h2 class="section-title">Wochenübersicht</h2>
-          <p class="chart-hint">Übungsanzahl der letzten 12 Wochen.</p>
+          <p class="chart-hint">Kumulierte Trainingszeit der letzten 12 Wochen.</p>
         </div>
         <div class="chart-container">
-          <canvas id="weeklyChart" role="img" aria-label="Übungsanzahl der letzten zwölf Wochen"></canvas>
+          <canvas
+            id="weeklyChart"
+            role="img"
+            aria-label="Kumulierte Trainingszeit der letzten zwölf Wochen"
+          ></canvas>
         </div>
         <p class="status" id="chartStatus" hidden></p>
+      </section>
+
+      <section class="card chart-card">
+        <div class="chart-header">
+          <h2 class="section-title">Streak-Entwicklung</h2>
+          <p class="chart-hint">
+            Ein Streak zählt ab 20 Minuten Training pro Tag. Ein Pausentag pro Woche bleibt ohne
+            Unterbrechung.
+          </p>
+        </div>
+        <div class="metrics-grid metrics-grid--compact" aria-label="Streak-Statistiken">
+          <div class="metric-tile">
+            <span class="metric-label">Aktueller Streak</span>
+            <span class="metric-value" id="currentStreak">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Bester Streak</span>
+            <span class="metric-value" id="bestStreak">–</span>
+          </div>
+          <div class="metric-tile">
+            <span class="metric-label">Freie Pausentage (diese Woche)</span>
+            <span class="metric-value" id="streakAllowance">–</span>
+          </div>
+        </div>
+        <p class="chart-hint" id="streakLastReset">Letzte Unterbrechung: –</p>
+        <div class="chart-legend">
+          <span class="chart-legend__item">
+            <span class="chart-legend__swatch" style="background: var(--accent);"></span>
+            Training ≥ 20&nbsp;Minuten
+          </span>
+          <span class="chart-legend__item">
+            <span class="chart-legend__swatch" style="background: #f3a712;"></span>
+            Genehmigter Pausentag
+          </span>
+          <span class="chart-legend__item">
+            <span class="chart-legend__swatch" style="background: #d64550;"></span>
+            Streak zurückgesetzt
+          </span>
+        </div>
+        <div class="chart-container">
+          <canvas
+            id="streakChart"
+            role="img"
+            aria-label="Streak-Entwicklung der letzten Wochen"
+          ></canvas>
+        </div>
+        <p class="status" id="streakStatus" hidden></p>
       </section>
 
       <section class="card">
@@ -502,6 +583,12 @@
       const tableStatus = document.getElementById("tableStatus");
       const weeklyChartCanvas = document.getElementById("weeklyChart");
       const chartStatus = document.getElementById("chartStatus");
+      const streakChartCanvas = document.getElementById("streakChart");
+      const streakStatus = document.getElementById("streakStatus");
+      const currentStreakEl = document.getElementById("currentStreak");
+      const bestStreakEl = document.getElementById("bestStreak");
+      const streakAllowanceEl = document.getElementById("streakAllowance");
+      const streakLastResetEl = document.getElementById("streakLastReset");
 
       const TIME_KEYS = [
         "completedAt",
@@ -527,12 +614,25 @@
 
       let latestData = [];
       let currentWeeklyBuckets = [];
+      let currentStreakTimeline = [];
 
       const numberFormatter = new Intl.NumberFormat("de-DE");
+      const decimalFormatter = new Intl.NumberFormat("de-DE", {
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 0,
+      });
       const shortDateFormatter = new Intl.DateTimeFormat("de-DE", {
         day: "2-digit",
         month: "2-digit",
       });
+      const chartDayFormatter = new Intl.DateTimeFormat("de-DE", {
+        day: "2-digit",
+        month: "2-digit",
+      });
+
+      const STREAK_THRESHOLD_SECONDS = 20 * 60;
+      const STREAK_LOOKBACK_DAYS = 84;
+      const WEEKLY_BUCKET_COUNT = 12;
 
       function formatDate(value) {
         const date = new Date(value);
@@ -792,22 +892,34 @@
         return parts.join(" ") || "0s";
       }
 
+      function formatMinutesLabel(value) {
+        const minutes = Math.max(0, value);
+        if (minutes >= 60) {
+          const hours = minutes / 60;
+          if (hours >= 10) {
+            return `${formatNumber(Math.round(hours))}h`;
+          }
+          return `${decimalFormatter.format(hours)}h`;
+        }
+        return `${formatNumber(Math.round(minutes))}m`;
+      }
+
       function buildWeeklyBuckets(entries) {
         const now = new Date();
         const currentWeekStart = getStartOfWeek(now);
         const buckets = [];
-        for (let i = 11; i >= 0; i -= 1) {
+        for (let i = WEEKLY_BUCKET_COUNT - 1; i >= 0; i -= 1) {
           const start = new Date(currentWeekStart);
           start.setDate(start.getDate() - i * 7);
           const end = new Date(start);
           end.setDate(end.getDate() + 7);
-          const { week, year } = getIsoWeekInfo(start);
+          const { week } = getIsoWeekInfo(start);
           const weekLabel = `KW ${String(week).padStart(2, "0")}`;
           buckets.push({
             start,
             end,
             label: `${weekLabel}\n${shortDateFormatter.format(start)}`,
-            count: 0,
+            totalSeconds: 0,
           });
         }
 
@@ -816,9 +928,13 @@
           if (!completedAt) {
             continue;
           }
+          const durationSeconds = getDurationSeconds(entry);
+          if (durationSeconds <= 0) {
+            continue;
+          }
           for (const bucket of buckets) {
             if (completedAt >= bucket.start && completedAt < bucket.end) {
-              bucket.count += 1;
+              bucket.totalSeconds += durationSeconds;
               break;
             }
           }
@@ -852,9 +968,9 @@
         const padding = { top: 20, right: 24, bottom: 48, left: 40 };
         const innerWidth = chartWidth - padding.left - padding.right;
         const innerHeight = chartHeight - padding.top - padding.bottom;
-        const counts = buckets.map(bucket => bucket.count);
-        const maxValue = Math.max(...counts, 0);
-        const safeMax = maxValue === 0 ? 1 : maxValue;
+        const minutes = buckets.map(bucket => bucket.totalSeconds / 60);
+        const maxValue = Math.max(...minutes, 0);
+        const safeMax = maxValue <= 0 ? 1 : maxValue;
 
         ctx.clearRect(0, 0, chartWidth, chartHeight);
         ctx.font = "12px 'Inter', 'Segoe UI', system-ui";
@@ -872,9 +988,18 @@
           ctx.lineTo(padding.left + innerWidth, y);
           ctx.stroke();
           const rawValue = stepValue * i;
-          const value = i === gridLines ? safeMax : Math.round(rawValue);
-          ctx.fillText(formatNumber(value), 4, y + 4);
+          const value = i === gridLines ? safeMax : rawValue;
+          ctx.fillText(formatMinutesLabel(value), 4, y + 4);
         }
+
+        const drawPoint = (bucket, index) => {
+          const x = padding.left + (innerWidth * index) / Math.max(1, buckets.length - 1);
+          const minutesValue = bucket.totalSeconds / 60;
+          const y = padding.top + innerHeight - (minutesValue / safeMax) * innerHeight;
+          ctx.beginPath();
+          ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+          ctx.fill();
+        };
 
         if (buckets.length > 1) {
           ctx.strokeStyle = "rgba(61, 139, 255, 0.8)";
@@ -883,8 +1008,9 @@
           buckets.forEach((bucket, index) => {
             const x =
               padding.left + (innerWidth * index) / (buckets.length - 1);
+            const minutesValue = bucket.totalSeconds / 60;
             const y =
-              padding.top + innerHeight - (bucket.count / safeMax) * innerHeight;
+              padding.top + innerHeight - (minutesValue / safeMax) * innerHeight;
             if (index === 0) {
               ctx.moveTo(x, y);
             } else {
@@ -895,14 +1021,11 @@
 
           ctx.fillStyle = "rgba(61, 139, 255, 0.9)";
           buckets.forEach((bucket, index) => {
-            const x =
-              padding.left + (innerWidth * index) / (buckets.length - 1);
-            const y =
-              padding.top + innerHeight - (bucket.count / safeMax) * innerHeight;
-            ctx.beginPath();
-            ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-            ctx.fill();
+            drawPoint(bucket, index);
           });
+        } else if (buckets.length === 1) {
+          ctx.fillStyle = "rgba(61, 139, 255, 0.9)";
+          drawPoint(buckets[0], 0);
         }
 
         ctx.fillStyle = "rgba(26, 42, 58, 0.7)";
@@ -922,16 +1045,265 @@
         ctx.restore();
       }
 
+      function buildDailyDurationMap(entries) {
+        const dailyDurations = new Map();
+        let earliestDate = null;
+        for (const entry of entries) {
+          const completedAt = getCompletionDate(entry);
+          if (!completedAt) {
+            continue;
+          }
+          const durationSeconds = getDurationSeconds(entry);
+          if (durationSeconds <= 0) {
+            continue;
+          }
+          const day = getStartOfDay(completedAt);
+          if (!earliestDate || day < earliestDate) {
+            earliestDate = day;
+          }
+          const key = day.toISOString().slice(0, 10);
+          const existing = dailyDurations.get(key) || 0;
+          dailyDurations.set(key, existing + durationSeconds);
+        }
+        return { dailyDurations, earliestDate };
+      }
+
+      function buildStreakTimeline(entries) {
+        const { dailyDurations, earliestDate } = buildDailyDurationMap(entries);
+        const today = getStartOfDay(new Date());
+        const startDate = earliestDate ? getStartOfDay(earliestDate) : new Date(today);
+        const totalDays = Math.max(1, Math.floor((today - startDate) / 86400000) + 1);
+
+        const timeline = [];
+        let currentStreak = 0;
+        let bestStreak = 0;
+        let missesThisWeek = 0;
+        let currentWeekKey = null;
+        let lastResetDate = null;
+
+        for (let offset = 0; offset < totalDays; offset += 1) {
+          const date = new Date(startDate);
+          date.setDate(startDate.getDate() + offset);
+          const weekInfo = getIsoWeekInfo(date);
+          const weekKey = `${weekInfo.year}-W${String(weekInfo.week).padStart(2, "0")}`;
+          if (weekKey !== currentWeekKey) {
+            currentWeekKey = weekKey;
+            missesThisWeek = 0;
+          }
+
+          const key = date.toISOString().slice(0, 10);
+          const durationSeconds = dailyDurations.get(key) || 0;
+          let status = "tolerated";
+
+          if (durationSeconds >= STREAK_THRESHOLD_SECONDS) {
+            currentStreak += 1;
+            bestStreak = Math.max(bestStreak, currentStreak);
+            status = "success";
+          } else {
+            missesThisWeek += 1;
+            if (missesThisWeek > 1) {
+              currentStreak = 0;
+              status = "reset";
+              lastResetDate = new Date(date);
+            }
+          }
+
+          timeline.push({
+            date: new Date(date),
+            durationSeconds,
+            streak: currentStreak,
+            status,
+          });
+        }
+
+        const allowedSkipsRemaining = Math.max(0, 1 - missesThisWeek);
+        const trimmedTimeline = timeline.slice(-Math.min(STREAK_LOOKBACK_DAYS, timeline.length));
+        const hasSuccessfulDay = timeline.some(point => point.status === "success");
+
+        return {
+          timeline: trimmedTimeline,
+          currentStreak,
+          bestStreak,
+          allowedSkipsRemaining,
+          lastResetDate,
+          hasSuccessfulDay,
+        };
+      }
+
+      function renderStreakChart(timeline) {
+        if (!streakChartCanvas) {
+          return;
+        }
+        const ctx = streakChartCanvas.getContext("2d");
+        if (!ctx) {
+          return;
+        }
+
+        const devicePixelRatio = window.devicePixelRatio || 1;
+        const cssWidth = streakChartCanvas.clientWidth || streakChartCanvas.offsetWidth || 600;
+        const cssHeight = streakChartCanvas.clientHeight || 260;
+        const width = cssWidth * devicePixelRatio;
+        const height = cssHeight * devicePixelRatio;
+        streakChartCanvas.width = Math.max(1, Math.floor(width));
+        streakChartCanvas.height = Math.max(1, Math.floor(height));
+        ctx.save();
+        ctx.scale(devicePixelRatio, devicePixelRatio);
+
+        const padding = { top: 20, right: 24, bottom: 60, left: 48 };
+        const innerWidth = cssWidth - padding.left - padding.right;
+        const innerHeight = cssHeight - padding.top - padding.bottom;
+
+        ctx.clearRect(0, 0, cssWidth, cssHeight);
+        ctx.font = "12px 'Inter', 'Segoe UI', system-ui";
+        ctx.fillStyle = "rgba(26, 42, 58, 0.6)";
+        ctx.strokeStyle = "rgba(61, 139, 255, 0.3)";
+        ctx.lineWidth = 1;
+
+        const streakValues = timeline.map(point => point.streak);
+        const maxValue = Math.max(...streakValues, 0);
+        const safeMax = maxValue <= 0 ? 1 : maxValue;
+
+        const gridLines = 5;
+        for (let i = 0; i <= gridLines; i += 1) {
+          const ratio = i / gridLines;
+          const y = padding.top + innerHeight - ratio * innerHeight;
+          ctx.beginPath();
+          ctx.moveTo(padding.left, y);
+          ctx.lineTo(padding.left + innerWidth, y);
+          ctx.stroke();
+          const rawValue = (safeMax / gridLines) * i;
+          const value = i === gridLines ? safeMax : rawValue;
+          ctx.fillText(formatNumber(Math.round(value)), 8, y + 4);
+        }
+
+        if (!timeline.length) {
+          ctx.restore();
+          return;
+        }
+
+        const gradient = ctx.createLinearGradient(0, padding.top, 0, padding.top + innerHeight);
+        gradient.addColorStop(0, "rgba(61, 139, 255, 0.25)");
+        gradient.addColorStop(1, "rgba(61, 139, 255, 0)");
+
+        ctx.beginPath();
+        timeline.forEach((point, index) => {
+          const x = padding.left + (innerWidth * index) / Math.max(1, timeline.length - 1);
+          const y =
+            padding.top + innerHeight - (point.streak / safeMax) * innerHeight;
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.lineTo(padding.left + innerWidth, padding.top + innerHeight);
+        ctx.lineTo(padding.left, padding.top + innerHeight);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        ctx.strokeStyle = "rgba(61, 139, 255, 0.85)";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        timeline.forEach((point, index) => {
+          const x = padding.left + (innerWidth * index) / Math.max(1, timeline.length - 1);
+          const y =
+            padding.top + innerHeight - (point.streak / safeMax) * innerHeight;
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        ctx.stroke();
+
+        const pointColors = {
+          success: "rgba(61, 139, 255, 0.95)",
+          tolerated: "#f3a712",
+          reset: "#d64550",
+        };
+
+        timeline.forEach((point, index) => {
+          const x = padding.left + (innerWidth * index) / Math.max(1, timeline.length - 1);
+          const y =
+            padding.top + innerHeight - (point.streak / safeMax) * innerHeight;
+          const color = pointColors[point.status] || "rgba(26, 42, 58, 0.6)";
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          const radius = point.status === "reset" ? 4.5 : 3.5;
+          ctx.arc(x, y, radius, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        ctx.fillStyle = "rgba(26, 42, 58, 0.7)";
+        const labelInterval = Math.max(1, Math.floor(timeline.length / 6));
+        timeline.forEach((point, index) => {
+          if (index % labelInterval !== 0 && index !== timeline.length - 1) {
+            return;
+          }
+          const x = padding.left + (innerWidth * index) / Math.max(1, timeline.length - 1);
+          const label = chartDayFormatter.format(point.date);
+          const textWidth = ctx.measureText(label).width;
+          const clampedX = Math.min(
+            padding.left + innerWidth - textWidth / 2,
+            Math.max(padding.left, x - textWidth / 2),
+          );
+          ctx.fillText(label, clampedX, cssHeight - padding.bottom + 32);
+        });
+
+        ctx.restore();
+      }
+
+      function updateStreakStats(entries) {
+        const {
+          timeline,
+          currentStreak,
+          bestStreak,
+          allowedSkipsRemaining,
+          lastResetDate,
+          hasSuccessfulDay,
+        } = buildStreakTimeline(entries);
+
+        currentStreakTimeline = timeline;
+        currentStreakEl.textContent = formatNumber(currentStreak);
+        bestStreakEl.textContent = formatNumber(bestStreak);
+        streakAllowanceEl.textContent = formatNumber(allowedSkipsRemaining);
+
+        if (lastResetDate) {
+          const formatted = new Intl.DateTimeFormat("de-DE", {
+            dateStyle: "medium",
+          }).format(lastResetDate);
+          streakLastResetEl.textContent = `Letzte Unterbrechung: ${formatted}`;
+        } else if (hasSuccessfulDay) {
+          streakLastResetEl.textContent = "Letzte Unterbrechung: keine innerhalb des Zeitraums.";
+        } else {
+          streakLastResetEl.textContent = "Letzte Unterbrechung: –";
+        }
+
+        if (!timeline.length || !hasSuccessfulDay) {
+          streakStatus.hidden = false;
+          streakStatus.dataset.type = hasSuccessfulDay ? "info" : "empty";
+          streakStatus.textContent = hasSuccessfulDay
+            ? "Streak-Daten werden aufgebaut."
+            : "Noch keine Trainingstage mit mindestens 20 Minuten vorhanden.";
+        } else {
+          streakStatus.hidden = true;
+          delete streakStatus.dataset.type;
+        }
+
+        renderStreakChart(timeline);
+      }
+
       function updateWeeklyChart(entries) {
         if (!weeklyChartCanvas) {
           return;
         }
         currentWeeklyBuckets = buildWeeklyBuckets(entries);
-        const hasData = currentWeeklyBuckets.some(bucket => bucket.count > 0);
+        const hasData = currentWeeklyBuckets.some(bucket => bucket.totalSeconds > 0);
         if (!hasData) {
           chartStatus.hidden = false;
           chartStatus.dataset.type = "empty";
-          chartStatus.textContent = "Keine Übungsabschlüsse in den letzten Wochen.";
+          chartStatus.textContent = "Keine Trainingszeit in den letzten Wochen erfasst.";
         } else {
           chartStatus.hidden = true;
           delete chartStatus.dataset.type;
@@ -1147,10 +1519,24 @@
         chartStatus.dataset.type = "error";
         chartStatus.textContent =
           "Kein API-Endpunkt für Übungsstatistiken konfiguriert.";
+        streakStatus.hidden = false;
+        streakStatus.dataset.type = "error";
+        streakStatus.textContent =
+          "Kein API-Endpunkt für Übungsstatistiken konfiguriert.";
+        currentStreakEl.textContent = "–";
+        bestStreakEl.textContent = "–";
+        streakAllowanceEl.textContent = "–";
+        streakLastResetEl.textContent = "Letzte Unterbrechung: –";
         if (weeklyChartCanvas) {
           const context = weeklyChartCanvas.getContext("2d");
           if (context) {
             context.clearRect(0, 0, weeklyChartCanvas.width, weeklyChartCanvas.height);
+          }
+        }
+        if (streakChartCanvas) {
+          const context = streakChartCanvas.getContext("2d");
+          if (context) {
+            context.clearRect(0, 0, streakChartCanvas.width, streakChartCanvas.height);
           }
         }
         refreshBtn.disabled = true;
@@ -1199,6 +1585,7 @@
           updateSummary(filteredData, data);
           updateActivityStats(filteredData);
           updateWeeklyChart(filteredData);
+          updateStreakStats(filteredData);
           updateTable(data);
 
           if (!data.length) {
@@ -1226,6 +1613,19 @@
           chartStatus.hidden = false;
           chartStatus.dataset.type = "error";
           chartStatus.textContent = "Diagramm konnte nicht geladen werden.";
+          streakStatus.hidden = false;
+          streakStatus.dataset.type = "error";
+          streakStatus.textContent = "Streak-Statistiken konnten nicht geladen werden.";
+          currentStreakEl.textContent = "–";
+          bestStreakEl.textContent = "–";
+          streakAllowanceEl.textContent = "–";
+          streakLastResetEl.textContent = "Letzte Unterbrechung: –";
+          if (streakChartCanvas) {
+            const context = streakChartCanvas.getContext("2d");
+            if (context) {
+              context.clearRect(0, 0, streakChartCanvas.width, streakChartCanvas.height);
+            }
+          }
           console.error(error);
         } finally {
           refreshBtn.disabled = false;
@@ -1243,9 +1643,8 @@
       });
 
       window.addEventListener("resize", () => {
-        if (currentWeeklyBuckets.length) {
-          renderWeeklyChart(currentWeeklyBuckets);
-        }
+        renderWeeklyChart(currentWeeklyBuckets);
+        renderStreakChart(currentStreakTimeline);
       });
 
       if (API_URL) {
