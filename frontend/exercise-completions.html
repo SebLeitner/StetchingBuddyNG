@@ -456,8 +456,8 @@
         <div class="chart-header">
           <h2 class="section-title">Streak-Entwicklung</h2>
           <p class="chart-hint">
-            Ein Streak zählt ab 20 Minuten Training pro Tag. Ein Pausentag pro Woche bleibt ohne
-            Unterbrechung.
+            Ein Streak zählt ab 20 Minuten Training pro Tag. Bis zu drei Pausentage in sieben Tagen
+            bleiben ohne Unterbrechung.
           </p>
         </div>
         <div class="metrics-grid metrics-grid--compact" aria-label="Streak-Statistiken">
@@ -470,7 +470,7 @@
             <span class="metric-value" id="bestStreak">–</span>
           </div>
           <div class="metric-tile">
-            <span class="metric-label">Freie Pausentage (diese Woche)</span>
+            <span class="metric-label">Freie Pausentage (7-Tage-Fenster)</span>
             <span class="metric-value" id="streakAllowance">–</span>
           </div>
         </div>
@@ -482,7 +482,7 @@
           </span>
           <span class="chart-legend__item">
             <span class="chart-legend__swatch" style="background: #f3a712;"></span>
-            Genehmigter Pausentag
+            Genehmigter Pausentag (max. 3 in 7 Tagen)
           </span>
           <span class="chart-legend__item">
             <span class="chart-legend__swatch" style="background: #d64550;"></span>
@@ -632,6 +632,9 @@
 
       const STREAK_THRESHOLD_SECONDS = 20 * 60;
       const STREAK_LOOKBACK_DAYS = 84;
+      const STREAK_ROLLING_WINDOW_DAYS = 7;
+      const STREAK_MIN_ACTIVE_DAYS = 4;
+      const STREAK_MAX_SKIPS_PER_WINDOW = STREAK_ROLLING_WINDOW_DAYS - STREAK_MIN_ACTIVE_DAYS;
       const WEEKLY_BUCKET_COUNT = 12;
 
       function formatDate(value) {
@@ -700,6 +703,8 @@
         "durationMilliseconds",
         "duration_milliseconds",
         "duration",
+        "durationSeconds",
+        "duration_seconds",
       ];
 
       function formatNumber(value) {
@@ -1077,36 +1082,60 @@
         const timeline = [];
         let currentStreak = 0;
         let bestStreak = 0;
-        let missesThisWeek = 0;
-        let currentWeekKey = null;
         let lastResetDate = null;
+
+        const windowStatuses = [];
+        let trainingDaysInWindow = 0;
+        let restDaysInWindow = 0;
 
         for (let offset = 0; offset < totalDays; offset += 1) {
           const date = new Date(startDate);
           date.setDate(startDate.getDate() + offset);
-          const weekInfo = getIsoWeekInfo(date);
-          const weekKey = `${weekInfo.year}-W${String(weekInfo.week).padStart(2, "0")}`;
-          if (weekKey !== currentWeekKey) {
-            currentWeekKey = weekKey;
-            missesThisWeek = 0;
-          }
 
           const key = date.toISOString().slice(0, 10);
           const durationSeconds = dailyDurations.get(key) || 0;
-          let status = "tolerated";
+          const isSuccess = durationSeconds >= STREAK_THRESHOLD_SECONDS;
 
-          if (durationSeconds >= STREAK_THRESHOLD_SECONDS) {
-            currentStreak += 1;
-            bestStreak = Math.max(bestStreak, currentStreak);
-            status = "success";
+          windowStatuses.push(isSuccess);
+          if (isSuccess) {
+            trainingDaysInWindow += 1;
           } else {
-            missesThisWeek += 1;
-            if (missesThisWeek > 1) {
-              currentStreak = 0;
-              status = "reset";
-              lastResetDate = new Date(date);
+            restDaysInWindow += 1;
+          }
+
+          while (windowStatuses.length > STREAK_ROLLING_WINDOW_DAYS) {
+            const removed = windowStatuses.shift();
+            if (removed) {
+              trainingDaysInWindow -= 1;
+            } else {
+              restDaysInWindow -= 1;
             }
           }
+
+          let status = isSuccess ? "success" : "tolerated";
+
+          if (restDaysInWindow > STREAK_MAX_SKIPS_PER_WINDOW) {
+            lastResetDate = new Date(date);
+            if (isSuccess) {
+              currentStreak = 1;
+              status = "success";
+              windowStatuses.length = 0;
+              windowStatuses.push(true);
+              trainingDaysInWindow = 1;
+              restDaysInWindow = 0;
+            } else {
+              currentStreak = 0;
+              status = "reset";
+              windowStatuses.length = 0;
+              windowStatuses.push(false);
+              trainingDaysInWindow = 0;
+              restDaysInWindow = 1;
+            }
+          } else if (isSuccess) {
+            currentStreak += 1;
+          }
+
+          bestStreak = Math.max(bestStreak, currentStreak);
 
           timeline.push({
             date: new Date(date),
@@ -1116,9 +1145,15 @@
           });
         }
 
-        const allowedSkipsRemaining = Math.max(0, 1 - missesThisWeek);
+        const rawAllowedSkips = Math.max(
+          0,
+          STREAK_MAX_SKIPS_PER_WINDOW - restDaysInWindow,
+        );
         const trimmedTimeline = timeline.slice(-Math.min(STREAK_LOOKBACK_DAYS, timeline.length));
         const hasSuccessfulDay = timeline.some(point => point.status === "success");
+        const allowedSkipsRemaining = hasSuccessfulDay
+          ? rawAllowedSkips
+          : STREAK_MAX_SKIPS_PER_WINDOW;
 
         return {
           timeline: trimmedTimeline,
