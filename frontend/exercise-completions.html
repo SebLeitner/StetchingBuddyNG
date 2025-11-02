@@ -210,8 +210,61 @@
       .chart-header {
         display: flex;
         flex-direction: column;
-        gap: 0.4rem;
+        gap: 0.75rem;
         margin-bottom: 1rem;
+      }
+
+      .chart-header__title {
+        display: grid;
+        gap: 0.4rem;
+      }
+
+      @media (min-width: 640px) {
+        .chart-header {
+          flex-direction: row;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 1rem;
+        }
+
+        .chart-header__title {
+          flex: 1;
+        }
+      }
+
+      .chart-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.25rem;
+        border-radius: 999px;
+        background: rgba(61, 139, 255, 0.08);
+        box-shadow: inset 0 0 0 1px rgba(61, 139, 255, 0.15);
+      }
+
+      .chart-toggle__button {
+        border: none;
+        background: transparent;
+        color: var(--text-secondary);
+        font-weight: 600;
+        font-size: 0.85rem;
+        padding: 0.35rem 0.85rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .chart-toggle__button:hover,
+      .chart-toggle__button:focus-visible {
+        background: rgba(61, 139, 255, 0.14);
+        color: var(--accent-strong);
+        outline: none;
+      }
+
+      .chart-toggle__button--active {
+        background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+        color: #fff;
+        box-shadow: 0 8px 18px rgba(61, 139, 255, 0.3);
       }
 
       .chart-hint {
@@ -439,14 +492,31 @@
 
       <section class="card chart-card">
         <div class="chart-header">
-          <h2 class="section-title">Wochenübersicht</h2>
-          <p class="chart-hint">Kumulierte Trainingszeit der letzten 12 Wochen.</p>
+          <div class="chart-header__title">
+            <h2 class="section-title">Trainingsdauer</h2>
+            <p class="chart-hint" id="weeklyChartHint">Trainingszeit dieser Woche nach Tagen.</p>
+          </div>
+          <div class="chart-toggle" role="group" aria-label="Zeitraum auswählen">
+            <button
+              type="button"
+              class="chart-toggle__button chart-toggle__button--active"
+              data-chart-mode="1w"
+            >
+              1&nbsp;W
+            </button>
+            <button type="button" class="chart-toggle__button" data-chart-mode="4w">
+              4&nbsp;W
+            </button>
+            <button type="button" class="chart-toggle__button" data-chart-mode="6m">
+              6&nbsp;M
+            </button>
+          </div>
         </div>
         <div class="chart-container">
           <canvas
             id="weeklyChart"
             role="img"
-            aria-label="Kumulierte Trainingszeit der letzten zwölf Wochen"
+            aria-label="Säulendiagramm der Trainingszeit dieser Woche nach Tagen"
           ></canvas>
         </div>
         <p class="status" id="chartStatus" hidden></p>
@@ -583,6 +653,8 @@
       const tableStatus = document.getElementById("tableStatus");
       const weeklyChartCanvas = document.getElementById("weeklyChart");
       const chartStatus = document.getElementById("chartStatus");
+      const chartHint = document.getElementById("weeklyChartHint");
+      const chartModeButtons = document.querySelectorAll("[data-chart-mode]");
       const streakChartCanvas = document.getElementById("streakChart");
       const streakStatus = document.getElementById("streakStatus");
       const currentStreakEl = document.getElementById("currentStreak");
@@ -615,6 +687,8 @@
       let latestData = [];
       let currentWeeklyBuckets = [];
       let currentStreakTimeline = [];
+      let currentDailyDurations = new Map();
+      let currentChartMode = "1w";
 
       const numberFormatter = new Intl.NumberFormat("de-DE");
       const decimalFormatter = new Intl.NumberFormat("de-DE", {
@@ -629,13 +703,18 @@
         day: "2-digit",
         month: "2-digit",
       });
+      const weekdayFormatter = new Intl.DateTimeFormat("de-DE", {
+        weekday: "short",
+      });
+      const monthFormatter = new Intl.DateTimeFormat("de-DE", {
+        month: "short",
+      });
 
       const STREAK_THRESHOLD_SECONDS = 20 * 60;
       const STREAK_LOOKBACK_DAYS = 84;
       const STREAK_ROLLING_WINDOW_DAYS = 7;
       const STREAK_MIN_ACTIVE_DAYS = 4;
       const STREAK_MAX_SKIPS_PER_WINDOW = STREAK_ROLLING_WINDOW_DAYS - STREAK_MIN_ACTIVE_DAYS;
-      const WEEKLY_BUCKET_COUNT = 12;
 
       function formatDate(value) {
         const date = new Date(value);
@@ -909,43 +988,146 @@
         return `${formatNumber(Math.round(minutes))}m`;
       }
 
-      function buildWeeklyBuckets(entries) {
-        const now = new Date();
-        const currentWeekStart = getStartOfWeek(now);
+      function getChartEmptyText(mode) {
+        switch (mode) {
+          case "4w":
+            return "Keine Trainingszeit in den letzten vier abgeschlossenen Wochen erfasst.";
+          case "6m":
+            return "Keine Trainingszeit in den letzten sechs Monaten erfasst.";
+          default:
+            return "Keine Trainingszeit in dieser Woche erfasst.";
+        }
+      }
+
+      function updateChartHint(mode) {
+        if (chartHint) {
+          let hintText = "";
+          switch (mode) {
+            case "4w":
+              hintText = "Trainingszeit der letzten vier abgeschlossenen Wochen.";
+              break;
+            case "6m":
+              hintText = "Trainingszeit der letzten sechs Monate.";
+              break;
+            default:
+              hintText = "Trainingszeit dieser Woche nach Tagen.";
+              break;
+          }
+          chartHint.textContent = hintText;
+        }
+
+        if (weeklyChartCanvas) {
+          let ariaLabel = "";
+          switch (mode) {
+            case "4w":
+              ariaLabel =
+                "Säulendiagramm der Trainingszeit der letzten vier abgeschlossenen Wochen";
+              break;
+            case "6m":
+              ariaLabel = "Säulendiagramm der Trainingszeit der letzten sechs Monate";
+              break;
+            default:
+              ariaLabel = "Säulendiagramm der Trainingszeit dieser Woche nach Tagen";
+              break;
+          }
+          weeklyChartCanvas.setAttribute("aria-label", ariaLabel);
+        }
+      }
+
+      function sumDurationsInRange(dailyDurations, start, end) {
+        if (!(dailyDurations instanceof Map)) {
+          return 0;
+        }
+        const cursor = getStartOfDay(start);
+        const limit = getStartOfDay(end);
+        let total = 0;
+        while (cursor < limit) {
+          const key = cursor.toISOString().slice(0, 10);
+          total += dailyDurations.get(key) || 0;
+          cursor.setDate(cursor.getDate() + 1);
+        }
+        return total;
+      }
+
+      function buildDurationBuckets(dailyDurations, mode) {
+        const map = dailyDurations instanceof Map ? dailyDurations : new Map();
+        const today = getStartOfDay(new Date());
         const buckets = [];
-        for (let i = WEEKLY_BUCKET_COUNT - 1; i >= 0; i -= 1) {
-          const start = new Date(currentWeekStart);
-          start.setDate(start.getDate() - i * 7);
+
+        if (mode === "4w") {
+          const currentWeekStart = getStartOfWeek(today);
+          for (let offset = 4; offset >= 1; offset -= 1) {
+            const start = new Date(currentWeekStart);
+            start.setDate(start.getDate() - offset * 7);
+            const end = new Date(start);
+            end.setDate(end.getDate() + 7);
+            const totalSeconds = sumDurationsInRange(map, start, end);
+            const { week } = getIsoWeekInfo(start);
+            buckets.push({
+              start,
+              end,
+              totalSeconds,
+              labelLines: [
+                `KW ${String(week).padStart(2, "0")}`,
+                shortDateFormatter.format(start),
+              ],
+            });
+          }
+          return buckets;
+        }
+
+        if (mode === "6m") {
+          const currentMonthStart = getStartOfMonth(today);
+          for (let offset = 5; offset >= 0; offset -= 1) {
+            const start = new Date(currentMonthStart);
+            start.setMonth(start.getMonth() - offset);
+            const end = new Date(start);
+            end.setMonth(end.getMonth() + 1);
+            const totalSeconds = sumDurationsInRange(map, start, end);
+            buckets.push({
+              start,
+              end,
+              totalSeconds,
+              labelLines: [monthFormatter.format(start), String(start.getFullYear())],
+            });
+          }
+          return buckets;
+        }
+
+        const weekStart = getStartOfWeek(today);
+        for (let index = 0; index < 7; index += 1) {
+          const start = new Date(weekStart);
+          start.setDate(weekStart.getDate() + index);
           const end = new Date(start);
-          end.setDate(end.getDate() + 7);
-          const { week } = getIsoWeekInfo(start);
-          const weekLabel = `KW ${String(week).padStart(2, "0")}`;
+          end.setDate(end.getDate() + 1);
+          const totalSeconds = sumDurationsInRange(map, start, end);
           buckets.push({
             start,
             end,
-            label: `${weekLabel}\n${shortDateFormatter.format(start)}`,
-            totalSeconds: 0,
+            totalSeconds,
+            labelLines: [weekdayFormatter.format(start), shortDateFormatter.format(start)],
           });
         }
+        return buckets;
+      }
 
-        for (const entry of entries) {
-          const completedAt = getCompletionDate(entry);
-          if (!completedAt) {
-            continue;
-          }
-          const durationSeconds = getDurationSeconds(entry);
-          if (durationSeconds <= 0) {
-            continue;
-          }
-          for (const bucket of buckets) {
-            if (completedAt >= bucket.start && completedAt < bucket.end) {
-              bucket.totalSeconds += durationSeconds;
-              break;
-            }
+      function refreshDurationChart() {
+        if (!weeklyChartCanvas) {
+          return;
+        }
+        currentWeeklyBuckets = buildDurationBuckets(currentDailyDurations, currentChartMode);
+        const hasData = currentWeeklyBuckets.some(bucket => bucket.totalSeconds > 0);
+        if (chartStatus) {
+          if (!hasData) {
+            chartStatus.hidden = false;
+            chartStatus.dataset.type = "empty";
+            chartStatus.textContent = getChartEmptyText(currentChartMode);
+          } else {
+            chartStatus.hidden = true;
+            delete chartStatus.dataset.type;
           }
         }
-
-        return buckets;
+        renderWeeklyChart(currentWeeklyBuckets);
       }
 
       function renderWeeklyChart(buckets) {
@@ -970,7 +1152,7 @@
 
         const chartWidth = cssWidth;
         const chartHeight = cssHeight;
-        const padding = { top: 20, right: 24, bottom: 48, left: 40 };
+        const padding = { top: 24, right: 32, bottom: 56, left: 48 };
         const innerWidth = chartWidth - padding.left - padding.right;
         const innerHeight = chartHeight - padding.top - padding.bottom;
         const minutes = buckets.map(bucket => bucket.totalSeconds / 60);
@@ -979,12 +1161,12 @@
 
         ctx.clearRect(0, 0, chartWidth, chartHeight);
         ctx.font = "12px 'Inter', 'Segoe UI', system-ui";
-        ctx.fillStyle = "rgba(26, 42, 58, 0.6)";
-        ctx.strokeStyle = "rgba(61, 139, 255, 0.3)";
-        ctx.lineWidth = 1;
+        ctx.textBaseline = "alphabetic";
 
+        ctx.strokeStyle = "rgba(61, 139, 255, 0.22)";
+        ctx.lineWidth = 1;
+        ctx.fillStyle = "rgba(26, 42, 58, 0.6)";
         const gridLines = 4;
-        const stepValue = safeMax / gridLines;
         for (let i = 0; i <= gridLines; i += 1) {
           const ratio = i / gridLines;
           const y = padding.top + innerHeight - ratio * innerHeight;
@@ -992,63 +1174,102 @@
           ctx.moveTo(padding.left, y);
           ctx.lineTo(padding.left + innerWidth, y);
           ctx.stroke();
-          const rawValue = stepValue * i;
+          const rawValue = (safeMax / gridLines) * i;
           const value = i === gridLines ? safeMax : rawValue;
-          ctx.fillText(formatMinutesLabel(value), 4, y + 4);
+          ctx.fillText(formatMinutesLabel(value), 8, y + 4);
         }
 
-        const drawPoint = (bucket, index) => {
-          const x = padding.left + (innerWidth * index) / Math.max(1, buckets.length - 1);
+        ctx.strokeStyle = "rgba(26, 42, 58, 0.12)";
+        ctx.beginPath();
+        ctx.moveTo(padding.left, padding.top + innerHeight + 0.5);
+        ctx.lineTo(padding.left + innerWidth, padding.top + innerHeight + 0.5);
+        ctx.stroke();
+
+        const groupCount = Math.max(1, buckets.length);
+        const groupWidth = innerWidth / groupCount;
+        const maxBarWidth = Math.min(48, groupWidth * 0.6);
+        const barGradient = ctx.createLinearGradient(
+          0,
+          padding.top,
+          0,
+          padding.top + innerHeight,
+        );
+        barGradient.addColorStop(0, "rgba(61, 139, 255, 0.92)");
+        barGradient.addColorStop(1, "rgba(61, 139, 255, 0.55)");
+        ctx.fillStyle = barGradient;
+
+        buckets.forEach((bucket, index) => {
           const minutesValue = bucket.totalSeconds / 60;
-          const y = padding.top + innerHeight - (minutesValue / safeMax) * innerHeight;
-          ctx.beginPath();
-          ctx.arc(x, y, 3.5, 0, Math.PI * 2);
-          ctx.fill();
-        };
+          const barHeight = (minutesValue / safeMax) * innerHeight;
+          if (barHeight <= 0) {
+            return;
+          }
+          const availableWidth = Math.max(10, groupWidth * 0.8);
+          const barWidth = Math.min(maxBarWidth, availableWidth);
+          const barX = padding.left + groupWidth * index + (groupWidth - barWidth) / 2;
+          const barY = padding.top + innerHeight - barHeight;
+          const radius = Math.min(12, barWidth / 2, barHeight);
 
-        if (buckets.length > 1) {
-          ctx.strokeStyle = "rgba(61, 139, 255, 0.8)";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-          buckets.forEach((bucket, index) => {
-            const x =
-              padding.left + (innerWidth * index) / (buckets.length - 1);
-            const minutesValue = bucket.totalSeconds / 60;
-            const y =
-              padding.top + innerHeight - (minutesValue / safeMax) * innerHeight;
-            if (index === 0) {
-              ctx.moveTo(x, y);
-            } else {
-              ctx.lineTo(x, y);
-            }
-          });
-          ctx.stroke();
-
-          ctx.fillStyle = "rgba(61, 139, 255, 0.9)";
-          buckets.forEach((bucket, index) => {
-            drawPoint(bucket, index);
-          });
-        } else if (buckets.length === 1) {
-          ctx.fillStyle = "rgba(61, 139, 255, 0.9)";
-          drawPoint(buckets[0], 0);
-        }
+          if (typeof ctx.roundRect === "function") {
+            ctx.beginPath();
+            ctx.roundRect(barX, barY, barWidth, barHeight, radius > 0 ? radius : 0);
+            ctx.fill();
+          } else {
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+          }
+        });
 
         ctx.fillStyle = "rgba(26, 42, 58, 0.7)";
         buckets.forEach((bucket, index) => {
-          const x =
-            padding.left + (innerWidth * index) / (buckets.length - 1);
-          const lines = bucket.label.split("\n");
+          const lines = bucket.labelLines || (bucket.label ? bucket.label.split("\n") : []);
+          if (!lines.length) {
+            return;
+          }
+          const xCenter = padding.left + groupWidth * index + groupWidth / 2;
           lines.forEach((line, lineIndex) => {
-            ctx.fillText(
-              line,
-              Math.max(4, Math.min(chartWidth - 40, x - 20)),
-              chartHeight - padding.bottom + 18 + lineIndex * 14,
-            );
+            if (!line) {
+              return;
+            }
+            const textWidth = ctx.measureText(line).width;
+            const maxX = padding.left + innerWidth - textWidth;
+            const minX = padding.left;
+            const textX = Math.min(maxX, Math.max(minX, xCenter - textWidth / 2));
+            const textY = chartHeight - padding.bottom + 18 + lineIndex * 14;
+            ctx.fillText(line, textX, textY);
           });
         });
 
         ctx.restore();
       }
+
+      chartModeButtons.forEach(button => {
+        if (!(button instanceof HTMLElement)) {
+          return;
+        }
+        const mode = button.dataset.chartMode;
+        const isActive = mode === currentChartMode;
+        button.classList.toggle("chart-toggle__button--active", isActive);
+        button.setAttribute("aria-pressed", isActive ? "true" : "false");
+        button.addEventListener("click", () => {
+          const selectedMode = button.dataset.chartMode;
+          if (!selectedMode || selectedMode === currentChartMode) {
+            return;
+          }
+          currentChartMode = selectedMode;
+          chartModeButtons.forEach(otherButton => {
+            if (!(otherButton instanceof HTMLElement)) {
+              return;
+            }
+            const otherMode = otherButton.dataset.chartMode;
+            const active = otherMode === currentChartMode;
+            otherButton.classList.toggle("chart-toggle__button--active", active);
+            otherButton.setAttribute("aria-pressed", active ? "true" : "false");
+          });
+          updateChartHint(currentChartMode);
+          refreshDurationChart();
+        });
+      });
+      updateChartHint(currentChartMode);
 
       function buildDailyDurationMap(entries) {
         const dailyDurations = new Map();
@@ -1346,17 +1567,10 @@
         if (!weeklyChartCanvas) {
           return;
         }
-        currentWeeklyBuckets = buildWeeklyBuckets(entries);
-        const hasData = currentWeeklyBuckets.some(bucket => bucket.totalSeconds > 0);
-        if (!hasData) {
-          chartStatus.hidden = false;
-          chartStatus.dataset.type = "empty";
-          chartStatus.textContent = "Keine Trainingszeit in den letzten Wochen erfasst.";
-        } else {
-          chartStatus.hidden = true;
-          delete chartStatus.dataset.type;
-        }
-        renderWeeklyChart(currentWeeklyBuckets);
+        const { dailyDurations } = buildDailyDurationMap(entries);
+        currentDailyDurations = dailyDurations;
+        updateChartHint(currentChartMode);
+        refreshDurationChart();
       }
 
       function updateActivityStats(entries) {
