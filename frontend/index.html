@@ -1369,39 +1369,43 @@
         const durationSeconds = dailyDurations.get(key) || 0;
         const isSuccess = durationSeconds >= STREAK_THRESHOLD_SECONDS;
 
-        windowStatuses.push(isSuccess);
-        if (isSuccess) {
+        const isToday = date.getTime() === today.getTime();
+        const isPending = isToday && !isSuccess;
+        const windowStatus = isSuccess ? "success" : isPending ? "pending" : "rest";
+
+        windowStatuses.push({ status: windowStatus, date: new Date(date) });
+        if (windowStatus === "success") {
           trainingDaysInWindow += 1;
-        } else {
+        } else if (windowStatus === "rest") {
           restDaysInWindow += 1;
         }
 
         while (windowStatuses.length > STREAK_ROLLING_WINDOW_DAYS) {
           const removed = windowStatuses.shift();
-          if (removed) {
+          if (removed?.status === "success") {
             trainingDaysInWindow -= 1;
-          } else {
+          } else if (removed?.status === "rest") {
             restDaysInWindow -= 1;
           }
         }
 
-        if (restDaysInWindow > STREAK_MAX_SKIPS_PER_WINDOW) {
+        if (windowStatus !== "pending" && restDaysInWindow > STREAK_MAX_SKIPS_PER_WINDOW) {
           lastResetDate = new Date(date);
-          if (isSuccess) {
+          if (windowStatus === "success") {
             currentStreak = 1;
             windowStatuses.length = 0;
-            windowStatuses.push(true);
+            windowStatuses.push({ status: "success", date: new Date(date) });
             trainingDaysInWindow = 1;
             restDaysInWindow = 0;
             hasSuccessfulDay = true;
           } else {
             currentStreak = 0;
             windowStatuses.length = 0;
-            windowStatuses.push(false);
+            windowStatuses.push({ status: "rest", date: new Date(date) });
             trainingDaysInWindow = 0;
             restDaysInWindow = 1;
           }
-        } else if (isSuccess) {
+        } else if (windowStatus === "success") {
           currentStreak += 1;
           hasSuccessfulDay = true;
         }
@@ -1409,9 +1413,13 @@
         bestStreak = Math.max(bestStreak, currentStreak);
       }
 
+      const restDaysForAllowance = windowStatuses.filter(
+        entry => entry.status === "rest" && entry.date.getTime() !== today.getTime(),
+      ).length;
+
       const rawAllowedSkips = Math.max(
         0,
-        STREAK_MAX_SKIPS_PER_WINDOW - restDaysInWindow,
+        STREAK_MAX_SKIPS_PER_WINDOW - restDaysForAllowance,
       );
       const allowedSkipsRemaining = hasSuccessfulDay
         ? rawAllowedSkips
