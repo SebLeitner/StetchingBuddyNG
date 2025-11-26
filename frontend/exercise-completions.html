@@ -404,8 +404,96 @@
         color: #a12315;
       }
 
+      .status[data-type="success"] {
+        color: #0f5132;
+      }
+
       .status[data-type="empty"] {
         color: #8c5a05;
+      }
+
+      .manual-grid {
+        display: grid;
+        gap: 1rem;
+      }
+
+      .manual-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+
+      @media (min-width: 720px) {
+        .manual-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .manual-card {
+        background: var(--surface-strong);
+        border: 1px solid rgba(61, 139, 255, 0.15);
+        border-radius: 16px;
+        padding: 1rem 1.1rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+
+      .manual-card h3 {
+        margin: 0;
+      }
+
+      .manual-card p {
+        margin: 0;
+        color: var(--text-secondary);
+        font-size: 0.9rem;
+      }
+
+      .manual-hint {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-secondary);
+      }
+
+      .manual-inputs {
+        display: grid;
+        gap: 0.6rem;
+      }
+
+      .manual-inputs label {
+        font-weight: 600;
+        font-size: 0.9rem;
+      }
+
+      .manual-inputs input {
+        width: 100%;
+        padding: 0.65rem 0.75rem;
+        border-radius: 12px;
+        border: 1px solid rgba(61, 139, 255, 0.2);
+        font-size: 1rem;
+      }
+
+      .manual-inputs input:focus-visible {
+        outline: 3px solid rgba(61, 139, 255, 0.24);
+        border-color: rgba(61, 139, 255, 0.5);
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 999px;
+        background: rgba(61, 139, 255, 0.12);
+        color: var(--text-primary);
+        font-weight: 600;
+        font-size: 0.9rem;
+        width: fit-content;
+      }
+
+      .badge__icon {
+        font-size: 1rem;
       }
 
       .chips {
@@ -451,6 +539,61 @@
             <p class="summary-hint" id="exerciseSummaryHint">Keine Übungsdaten verfügbar.</p>
           </div>
         </div>
+      </section>
+
+      <section class="card" id="manualLogCard">
+        <div class="manual-header">
+          <div>
+            <h2 class="section-title">Training manuell loggen</h2>
+            <p class="summary-hint">
+              Ergänze fehlende Sessions – ab 10 Minuten zählen sie für deinen Streak.
+            </p>
+          </div>
+          <span class="badge" aria-label="Ab 10 Minuten zählt es für den Streak">
+            <span class="badge__icon" aria-hidden="true">🔥</span>
+            Ab 10 Minuten zählt's
+          </span>
+        </div>
+
+        <div class="manual-grid">
+          <div class="manual-card">
+            <h3>Kieser Training</h3>
+            <p>Kennzeichne einen Tag als Kieser-Training. Die Dauer wird streak-fähig gespeichert.</p>
+            <div class="manual-inputs">
+              <label for="kieserDate">Datum</label>
+              <input type="date" id="kieserDate" name="kieserDate" />
+            </div>
+            <button id="logKieserBtn" type="button">Kieser Training speichern</button>
+          </div>
+
+          <div class="manual-card">
+            <h3>Übungseinheit als Zeit</h3>
+            <p>Logge eine beliebige Einheit per Dauer, damit sie im Verlauf erscheint.</p>
+            <div class="manual-inputs">
+              <label for="manualName">Bezeichnung</label>
+              <input type="text" id="manualName" name="manualName" value="Manuelle Einheit" />
+
+              <label for="manualDuration">Trainingsdauer (Minuten)</label>
+              <input
+                type="number"
+                id="manualDuration"
+                name="manualDuration"
+                min="1"
+                step="1"
+                value="15"
+              />
+
+              <label for="manualDate">Datum</label>
+              <input type="date" id="manualDate" name="manualDate" />
+            </div>
+            <p class="manual-hint">
+              Einträge unter 10 Minuten werden automatisch auf das Minimum angehoben, damit der Streak zählt.
+            </p>
+            <button id="logManualDurationBtn" type="button">Übungseinheit speichern</button>
+          </div>
+        </div>
+
+        <p class="status" id="manualStatus" hidden></p>
       </section>
 
       <section class="card">
@@ -526,7 +669,7 @@
         <div class="chart-header">
           <h2 class="section-title">Streak-Entwicklung</h2>
           <p class="chart-hint">
-            Ein Streak zählt ab 20 Minuten Training pro Tag. Bis zu drei Pausentage in sieben Tagen
+            Ein Streak zählt ab 10 Minuten Training pro Tag. Bis zu drei Pausentage in sieben Tagen
             bleiben ohne Unterbrechung.
           </p>
         </div>
@@ -544,12 +687,12 @@
             <span class="metric-value" id="streakAllowance">–</span>
           </div>
         </div>
-        <p class="chart-hint" id="streakLastReset">Letzte Unterbrechung: –</p>
-        <div class="chart-legend">
-          <span class="chart-legend__item">
-            <span class="chart-legend__swatch" style="background: var(--accent);"></span>
-            Training ≥ 20&nbsp;Minuten
-          </span>
+          <p class="chart-hint" id="streakLastReset">Letzte Unterbrechung: –</p>
+          <div class="chart-legend">
+            <span class="chart-legend__item">
+              <span class="chart-legend__swatch" style="background: var(--accent);"></span>
+              Training ≥ 10&nbsp;Minuten
+            </span>
           <span class="chart-legend__item">
             <span class="chart-legend__swatch" style="background: #f3a712;"></span>
             Genehmigter Pausentag (max. 3 in 7 Tagen)
@@ -661,6 +804,13 @@
       const bestStreakEl = document.getElementById("bestStreak");
       const streakAllowanceEl = document.getElementById("streakAllowance");
       const streakLastResetEl = document.getElementById("streakLastReset");
+      const manualStatus = document.getElementById("manualStatus");
+      const manualDateInput = document.getElementById("manualDate");
+      const manualDurationInput = document.getElementById("manualDuration");
+      const manualNameInput = document.getElementById("manualName");
+      const logManualDurationBtn = document.getElementById("logManualDurationBtn");
+      const kieserDateInput = document.getElementById("kieserDate");
+      const logKieserBtn = document.getElementById("logKieserBtn");
 
       const TIME_KEYS = [
         "completedAt",
@@ -689,6 +839,7 @@
       let currentStreakTimeline = [];
       let currentDailyDurations = new Map();
       let currentChartMode = "1w";
+      let cachedClientId = null;
 
       const numberFormatter = new Intl.NumberFormat("de-DE");
       const decimalFormatter = new Intl.NumberFormat("de-DE", {
@@ -710,11 +861,14 @@
         month: "short",
       });
 
-      const STREAK_THRESHOLD_SECONDS = 20 * 60;
+      const STREAK_THRESHOLD_SECONDS = 10 * 60;
       const STREAK_LOOKBACK_DAYS = 84;
       const STREAK_ROLLING_WINDOW_DAYS = 7;
       const STREAK_MIN_ACTIVE_DAYS = 4;
       const STREAK_MAX_SKIPS_PER_WINDOW = STREAK_ROLLING_WINDOW_DAYS - STREAK_MIN_ACTIVE_DAYS;
+      const STREAK_MINUTES_REQUIRED = STREAK_THRESHOLD_SECONDS / 60;
+      const CLIENT_ID_STORAGE_KEY = "stretchCoachClientId";
+      const KIESER_DEFAULT_MINUTES = 45;
 
       function formatDate(value) {
         const date = new Date(value);
@@ -851,6 +1005,111 @@
         }
         const normalized = id.trim().toLowerCase();
         return normalized === "test" || normalized === "test übung" || normalized === "testübung";
+      }
+
+      function safeLocalStorageGetItem(key) {
+        try {
+          return window.localStorage ? window.localStorage.getItem(key) : null;
+        } catch (_err) {
+          return null;
+        }
+      }
+
+      function safeLocalStorageSetItem(key, value) {
+        try {
+          if (window.localStorage) {
+            window.localStorage.setItem(key, value);
+          }
+        } catch (_err) {
+          // Speicherung ist optional; Fehler werden ignoriert
+        }
+      }
+
+      function createClientId() {
+        if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+          return crypto.randomUUID();
+        }
+        const randomPart = Math.random().toString(16).slice(2, 10);
+        return `client-${Date.now()}-${randomPart}`;
+      }
+
+      function getOrCreateClientId() {
+        if (cachedClientId) {
+          return cachedClientId;
+        }
+        const existing = safeLocalStorageGetItem(CLIENT_ID_STORAGE_KEY);
+        if (existing && typeof existing === "string" && existing.trim()) {
+          cachedClientId = existing.trim();
+          return cachedClientId;
+        }
+        const newId = createClientId();
+        cachedClientId = newId;
+        safeLocalStorageSetItem(CLIENT_ID_STORAGE_KEY, newId);
+        return cachedClientId;
+      }
+
+      function setManualStatus(message, type = "info") {
+        if (!manualStatus) return;
+        manualStatus.textContent = message || "";
+        manualStatus.hidden = !message;
+        if (!message) {
+          delete manualStatus.dataset.type;
+          return;
+        }
+        manualStatus.dataset.type = type;
+      }
+
+      function parseDateInputValue(input) {
+        if (!input || !input.value) {
+          return null;
+        }
+        const parts = input.value.split("-").map(Number);
+        if (parts.length === 3 && parts.every(num => Number.isInteger(num))) {
+          const [year, month, day] = parts;
+          const date = new Date(year, month - 1, day);
+          if (!Number.isNaN(date.getTime())) {
+            return date;
+          }
+        }
+        const fallback = new Date(input.value);
+        return Number.isNaN(fallback.getTime()) ? null : fallback;
+      }
+
+      function setTodayDefaultDate(input) {
+        if (!input) return;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        input.value = today.toISOString().slice(0, 10);
+      }
+
+      function normalizeDurationMinutes(rawMinutes) {
+        const parsed = Math.max(1, Math.round(Number(rawMinutes) || 0));
+        const normalized = Math.max(parsed, Math.ceil(STREAK_MINUTES_REQUIRED));
+        return { minutes: normalized, adjusted: normalized !== parsed };
+      }
+
+      function buildManualPayload({ dateInput, durationMinutes, name, exerciseId }) {
+        const { minutes, adjusted } = normalizeDurationMinutes(durationMinutes);
+        const baseDate = parseDateInputValue(dateInput) || new Date();
+        baseDate.setHours(12, 0, 0, 0);
+        const durationMs = minutes * 60 * 1000;
+        const startedAt = baseDate.getTime();
+        const finishedAt = startedAt + durationMs;
+        return {
+          payload: {
+            clientId: getOrCreateClientId(),
+            exerciseId: exerciseId ? String(exerciseId) : "manual-entry",
+            exerciseName: name && name.trim() ? name.trim() : "Manueller Eintrag",
+            totalSets: 1,
+            setsCompleted: 1,
+            durationMs,
+            startedAt: new Date(startedAt).toISOString(),
+            finishedAt: new Date(finishedAt).toISOString(),
+            source: "manual",
+          },
+          minutes,
+          adjusted,
+        };
       }
 
       function parseDateValue(value) {
@@ -1554,7 +1813,7 @@
           streakStatus.dataset.type = hasSuccessfulDay ? "info" : "empty";
           streakStatus.textContent = hasSuccessfulDay
             ? "Streak-Daten werden aufgebaut."
-            : "Noch keine Trainingstage mit mindestens 20 Minuten vorhanden.";
+            : "Noch keine Trainingstage mit mindestens 10 Minuten vorhanden.";
         } else {
           streakStatus.hidden = true;
           delete streakStatus.dataset.type;
@@ -1823,6 +2082,87 @@
         return data ? [data] : [];
       }
 
+      async function submitManualCompletion(options) {
+        if (!API_URL) {
+          setManualStatus("API-Endpunkt nicht konfiguriert.", "error");
+          return;
+        }
+
+        const { payload, adjusted, minutes } = buildManualPayload(options);
+        if (!payload.clientId) {
+          setManualStatus("Kein Client-Identifier verfügbar.", "error");
+          return;
+        }
+
+        setManualStatus("Speichere Eintrag...", "info");
+
+        try {
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `API-Fehler (${response.status})`);
+          }
+
+          const adjustmentNote = adjusted ? " (auf Mindestdauer angehoben)" : "";
+          setManualStatus(
+            `Eintrag mit ${minutes} Minuten gespeichert${adjustmentNote}.`,
+            "success",
+          );
+          await loadData();
+        } catch (error) {
+          setManualStatus(error?.message || "Eintrag konnte nicht gespeichert werden.", "error");
+          console.error(error);
+        }
+      }
+
+      function registerManualControls() {
+        setTodayDefaultDate(manualDateInput);
+        setTodayDefaultDate(kieserDateInput);
+        setManualStatus("");
+
+        if (!API_URL) {
+          if (logKieserBtn) {
+            logKieserBtn.disabled = true;
+          }
+          if (logManualDurationBtn) {
+            logManualDurationBtn.disabled = true;
+          }
+          setManualStatus("Kein API-Endpunkt für manuelle Einträge konfiguriert.", "error");
+          return;
+        }
+
+        if (logKieserBtn) {
+          logKieserBtn.addEventListener("click", () => {
+            submitManualCompletion({
+              dateInput: kieserDateInput,
+              durationMinutes: KIESER_DEFAULT_MINUTES,
+              name: "Kieser Training (manuell)",
+              exerciseId: "kieser-training",
+            });
+          });
+        }
+
+        if (logManualDurationBtn) {
+          logManualDurationBtn.addEventListener("click", () => {
+            const minutesValue = manualDurationInput ? Number(manualDurationInput.value || 0) : 0;
+            submitManualCompletion({
+              dateInput: manualDateInput,
+              durationMinutes: minutesValue,
+              name:
+                manualNameInput && manualNameInput.value
+                  ? manualNameInput.value
+                  : "Manuelle Einheit",
+              exerciseId: "manual-duration",
+            });
+          });
+        }
+      }
+
       async function loadData() {
         if (!ensureApiConfigured()) {
           return;
@@ -1893,6 +2233,8 @@
           refreshBtn.disabled = false;
         }
       }
+
+      registerManualControls();
 
       refreshBtn.addEventListener("click", () => {
         loadData();
