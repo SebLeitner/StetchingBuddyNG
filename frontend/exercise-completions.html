@@ -323,6 +323,25 @@
         overflow-x: auto;
       }
 
+      .table-action-button {
+        background: transparent;
+        border: 1px solid rgba(61, 139, 255, 0.35);
+        color: var(--accent-strong);
+        box-shadow: none;
+        padding: 0.4rem 0.75rem;
+        border-radius: 10px;
+        font-weight: 700;
+      }
+
+      .table-action-button:hover {
+        background: rgba(61, 139, 255, 0.1);
+      }
+
+      .table-action-button:disabled {
+        opacity: 0.6;
+        cursor: progress;
+      }
+
       table {
         width: 100%;
         border-collapse: collapse;
@@ -823,6 +842,8 @@
         "time",
         "date",
       ];
+      const CLIENT_ID_KEYS = ["clientId", "client_id"];
+      const COMPLETED_AT_KEYS = ["completedAt", "completed_at"];
       const USER_KEYS = ["clientId", "userId", "participantId", "profileId"];
       const PRIORITY_COLUMNS = [
         "completedAt",
@@ -833,6 +854,7 @@
         "duration",
         "count",
       ];
+      const ACTIONS_COLUMN_KEY = "__actions__";
 
       let latestData = [];
       let currentWeeklyBuckets = [];
@@ -869,6 +891,11 @@
       const STREAK_MINUTES_REQUIRED = STREAK_THRESHOLD_SECONDS / 60;
       const CLIENT_ID_STORAGE_KEY = "stretchCoachClientId";
       const KIESER_DEFAULT_MINUTES = 45;
+      const LOCAL_DATE_FORMATTER = new Intl.DateTimeFormat("de-DE", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
 
       function formatDate(value) {
         const date = new Date(value);
@@ -1007,6 +1034,18 @@
         return normalized === "test" || normalized === "test übung" || normalized === "testübung";
       }
 
+      function extractDeletionIdentifiers(entry) {
+        if (!entry || typeof entry !== "object") {
+          return null;
+        }
+        const clientId = getFirstNonEmptyString(entry, CLIENT_ID_KEYS);
+        const completedAt = getFirstNonEmptyString(entry, COMPLETED_AT_KEYS);
+        if (!clientId || !completedAt) {
+          return null;
+        }
+        return { clientId, completedAt };
+      }
+
       function safeLocalStorageGetItem(key) {
         try {
           return window.localStorage ? window.localStorage.getItem(key) : null;
@@ -1079,7 +1118,7 @@
         if (!input) return;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        input.value = today.toISOString().slice(0, 10);
+        input.value = formatDateKey(today);
       }
 
       function normalizeDurationMinutes(rawMinutes) {
@@ -1153,6 +1192,16 @@
           return parseDateValue(entry.finished_at);
         }
         return null;
+      }
+
+      function formatDateKey(date) {
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) {
+          return "";
+        }
+        const [day, month, year] = LOCAL_DATE_FORMATTER.formatToParts(date)
+          .filter(part => part.type !== "literal")
+          .map(part => part.value);
+        return `${year}-${month}-${day}`;
       }
 
       function getStartOfDay(date) {
@@ -1301,7 +1350,7 @@
         const limit = getStartOfDay(end);
         let total = 0;
         while (cursor < limit) {
-          const key = cursor.toISOString().slice(0, 10);
+          const key = formatDateKey(cursor);
           total += dailyDurations.get(key) || 0;
           cursor.setDate(cursor.getDate() + 1);
         }
@@ -1546,7 +1595,7 @@
           if (!earliestDate || day < earliestDate) {
             earliestDate = day;
           }
-          const key = day.toISOString().slice(0, 10);
+          const key = formatDateKey(day);
           const existing = dailyDurations.get(key) || 0;
           dailyDurations.set(key, existing + durationSeconds);
         }
@@ -1572,7 +1621,7 @@
           const date = new Date(startDate);
           date.setDate(startDate.getDate() + offset);
 
-          const key = date.toISOString().slice(0, 10);
+          const key = formatDateKey(date);
           const durationSeconds = dailyDurations.get(key) || 0;
           const isSuccess = durationSeconds >= STREAK_THRESHOLD_SECONDS;
 
@@ -1994,8 +2043,12 @@
 
       function updateTable(entries) {
         const columns = deriveColumns(entries);
+        const canDeleteEntries = entries.some(entry => extractDeletionIdentifiers(entry));
+        const visibleColumns = canDeleteEntries
+          ? [...columns, ACTIONS_COLUMN_KEY]
+          : columns;
 
-        if (!columns.length) {
+        if (!visibleColumns.length) {
           tableHeadRow.innerHTML = "";
           tableBody.innerHTML = "";
           tableStatus.textContent = "Keine Daten zum Anzeigen.";
@@ -2003,21 +2056,45 @@
           return;
         }
 
-        tableHeadRow.innerHTML = columns.map(column => `<th scope="col">${column}</th>`).join("");
+        tableHeadRow.innerHTML = visibleColumns
+          .map(column => {
+            if (column === ACTIONS_COLUMN_KEY) {
+              return `<th scope="col">Aktion</th>`;
+            }
+            return `<th scope="col">${column}</th>`;
+          })
+          .join("");
 
         tableBody.innerHTML = entries
           .map(entry => {
             if (!entry || typeof entry !== "object") {
-              return `<tr><td colspan="${columns.length}">–</td></tr>`;
+              return `<tr><td colspan="${visibleColumns.length}">–</td></tr>`;
             }
-            const cells = columns
-              .map(column => `<td>${formatValue(column, entry[column])}</td>`)
+            const cells = visibleColumns
+              .map(column => {
+                if (column === ACTIONS_COLUMN_KEY) {
+                  const identifiers = extractDeletionIdentifiers(entry);
+                  if (!identifiers) {
+                    return "<td>–</td>";
+                  }
+                  const { clientId, completedAt } = identifiers;
+                  const formattedDate = formatDate(completedAt) || completedAt;
+                  const title = escapeHtml(`Eintrag vom ${formattedDate}`);
+                  return `<td><button type="button" class="table-action-button" data-delete-client-id="${escapeHtml(
+                    clientId,
+                  )}" data-delete-completed-at="${escapeHtml(
+                    completedAt,
+                  )}" title="${title}">Löschen</button></td>`;
+                }
+                return `<td>${formatValue(column, entry[column])}</td>`;
+              })
               .join("");
             return `<tr>${cells}</tr>`;
           })
           .join("");
 
-        columnChips.innerHTML = columns
+        columnChips.innerHTML = visibleColumns
+          .filter(column => column !== ACTIONS_COLUMN_KEY)
           .map(column => `<span class="chip">${column}</span>`)
           .join("");
 
@@ -2062,6 +2139,21 @@
         }
         refreshBtn.disabled = true;
         return false;
+      }
+
+      function buildApiUrlWithParams(params) {
+        if (!API_URL) {
+          throw new Error("API-Endpunkt nicht konfiguriert.");
+        }
+        const url = API_URL.startsWith("http")
+          ? new URL(API_URL)
+          : new URL(API_URL, window.location.origin);
+        Object.entries(params || {}).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            url.searchParams.set(key, value);
+          }
+        });
+        return url.toString();
       }
 
       async function fetchData(signal) {
@@ -2163,6 +2255,62 @@
         }
       }
 
+      async function deleteEntry(clientId, completedAt, trigger) {
+        if (!clientId || !completedAt) {
+          tableStatus.textContent = "Eintrag kann nicht gelöscht werden.";
+          tableStatus.dataset.type = "error";
+          return;
+        }
+
+        try {
+          if (trigger) {
+            trigger.disabled = true;
+          }
+
+          tableStatus.textContent = "Lösche Eintrag...";
+          tableStatus.dataset.type = "info";
+
+          const url = buildApiUrlWithParams({ clientId, completedAt });
+          const response = await fetch(url, { method: "DELETE" });
+
+          if (!response.ok) {
+            const text = await response.text();
+            throw new Error(text || `API-Fehler (${response.status})`);
+          }
+
+          tableStatus.textContent = "Eintrag gelöscht.";
+          delete tableStatus.dataset.type;
+          await loadData();
+        } catch (error) {
+          tableStatus.textContent = error?.message || "Eintrag konnte nicht gelöscht werden.";
+          tableStatus.dataset.type = "error";
+          console.error(error);
+        } finally {
+          if (trigger) {
+            trigger.disabled = false;
+          }
+        }
+      }
+
+      function registerTableActions() {
+        if (!tableBody) return;
+
+        tableBody.addEventListener("click", event => {
+          const target = event.target;
+          if (!(target instanceof HTMLElement)) {
+            return;
+          }
+          const button = target.closest("button[data-delete-client-id]");
+          if (!button) {
+            return;
+          }
+
+          const clientId = button.dataset.deleteClientId;
+          const completedAt = button.dataset.deleteCompletedAt;
+          deleteEntry(clientId, completedAt, button);
+        });
+      }
+
       async function loadData() {
         if (!ensureApiConfigured()) {
           return;
@@ -2235,6 +2383,7 @@
       }
 
       registerManualControls();
+      registerTableActions();
 
       refreshBtn.addEventListener("click", () => {
         loadData();
