@@ -447,6 +447,12 @@
       grid-column: 1 / -1;
     }
 
+    .breathing-button {
+      background: linear-gradient(135deg, #34d399, #059669);
+      box-shadow: 0 12px 24px rgba(5, 150, 105, 0.32);
+      grid-column: 1 / -1;
+    }
+
     .mindfulness-button:hover:not(:disabled) {
       transform: translateY(-1px);
       filter: brightness(1.05);
@@ -800,6 +806,81 @@
       gap: 1rem;
     }
 
+    .breathing-content {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .breathing-description {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .breathing-slider {
+      display: grid;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      background: rgba(61, 139, 255, 0.08);
+      border: 1px solid rgba(61, 139, 255, 0.15);
+    }
+
+    .breathing-slider label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin: 0;
+    }
+
+    .breathing-duration-value {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .breathing-session-display {
+      display: grid;
+      gap: 0.25rem;
+      padding: 1rem 1.25rem;
+      border-radius: 16px;
+      background: rgba(26, 42, 58, 0.06);
+      border: 1px solid rgba(61, 139, 255, 0.12);
+    }
+
+    .breathing-phase {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .breathing-countdown {
+      font-size: clamp(2.4rem, 6vw, 3.2rem);
+      font-weight: 700;
+      color: var(--accent-strong);
+      letter-spacing: 0.05em;
+    }
+
+    .breathing-remaining {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .breathing-status-text {
+      color: var(--text-secondary);
+      margin-right: auto;
+      font-size: 0.95rem;
+    }
+
     .exercise-details-instruction {
       margin: 0;
       font-size: 0.95rem;
@@ -890,6 +971,7 @@
       <div class="primary-actions">
         <button id="openSessionBtn" class="primary-button" type="button" disabled>Start</button>
         <button id="beatsRadioBtn" class="beats-radio-button" type="button">Beats Radio</button>
+        <button id="breathingBtn" class="breathing-button" type="button">Atemübung</button>
         <button id="mindfulnessPromptBtn" class="mindfulness-button" type="button">Achtsamkeitsspruch</button>
       </div>
       <div class="secondary-actions">
@@ -1011,6 +1093,63 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="breathingModal" hidden>
+    <div
+      class="modal-card modal-card--narrow"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="breathingModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="breathingModalTitle">Atemübung</h2>
+        </div>
+        <button id="breathingCloseBtn" type="button" class="ghost-button ghost-button--small">
+          Schließen
+        </button>
+      </header>
+      <div class="modal-content breathing-content">
+        <p class="breathing-description">
+          Wähle eine Dauer zwischen 1 und 10 Minuten. Jede Runde besteht aus 5 Sekunden Einatmen
+          und 10 Sekunden Ausatmen.
+        </p>
+        <div class="breathing-slider">
+          <label for="breathingDurationSlider">
+            <span>Sitzungsdauer</span>
+            <span class="breathing-duration-value" id="breathingDurationLabel">5:00</span>
+          </label>
+          <input
+            type="range"
+            id="breathingDurationSlider"
+            min="1"
+            max="10"
+            step="1"
+            value="5"
+          />
+        </div>
+        <div class="breathing-session-display">
+          <div class="breathing-phase">
+            <span id="breathingPhaseLabel">Bereit?</span>
+            <span class="breathing-remaining" id="breathingRemainingWrapper">
+              <span>Restzeit</span>
+              <strong id="breathingRemaining">05:00</strong>
+            </span>
+          </div>
+          <div class="breathing-countdown" id="breathingCountdown">–</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <span class="breathing-status-text" id="breathingStatusText">Bereit zum Start.</span>
+        <div class="start-controls">
+          <button id="breathingStartBtn" class="primary-button" type="button">Start</button>
+          <button id="breathingStopBtn" class="secondary-button" type="button" disabled>
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="debugModal" hidden>
     <div class="modal-card modal-card--narrow" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
       <header class="modal-header">
@@ -1031,6 +1170,17 @@
     const openSessionBtn = document.getElementById("openSessionBtn");
     const beatsRadioBtn = document.getElementById("beatsRadioBtn");
     const mindfulnessPromptBtn = document.getElementById("mindfulnessPromptBtn");
+    const breathingBtn = document.getElementById("breathingBtn");
+    const breathingModal = document.getElementById("breathingModal");
+    const breathingCloseBtn = document.getElementById("breathingCloseBtn");
+    const breathingDurationSlider = document.getElementById("breathingDurationSlider");
+    const breathingDurationLabel = document.getElementById("breathingDurationLabel");
+    const breathingPhaseLabel = document.getElementById("breathingPhaseLabel");
+    const breathingCountdown = document.getElementById("breathingCountdown");
+    const breathingRemaining = document.getElementById("breathingRemaining");
+    const breathingStatusText = document.getElementById("breathingStatusText");
+    const breathingStartBtn = document.getElementById("breathingStartBtn");
+    const breathingStopBtn = document.getElementById("breathingStopBtn");
     const debugLogBtn = document.getElementById("debugLogBtn");
     const exerciseModal = document.getElementById("exerciseModal");
     const sessionCloseBtn = document.getElementById("sessionCloseBtn");
@@ -1095,6 +1245,15 @@
     let audioUnlocked = false;
     let lastAudioUnlockError = "";
     let visibleModalCount = 0;
+    let breathingSessionActive = false;
+    let breathingSessionEndAt = 0;
+    let breathingPhaseRaf = null;
+    let breathingRemainingInterval = null;
+    let breathingCountdownLastValue = null;
+    let breathingPhaseStart = 0;
+    let breathingPhaseDuration = 0;
+    let breathingCurrentPhase = null;
+    let breathingStopRequested = false;
 
     const display = document.getElementById("display");
     const startBtn = document.getElementById("sessionStartBtn");
@@ -1142,6 +1301,16 @@
     const MINDFULNESS_PROMPT_DELAY_MS = 3000;
     let breakBellAudioElement = null;
     let breakBellAudioReadyPromise = null;
+    const BREATH_IN_DURATION_MS = 5000;
+    const BREATH_OUT_DURATION_MS = 10000;
+    const BREATH_IN_START_VALUE = 4;
+    const BREATH_OUT_START_VALUE = 9;
+    const BREATHING_MINUTES_MIN = 1;
+    const BREATHING_MINUTES_MAX = 10;
+    const BREATHING_DEFAULT_MINUTES = 5;
+    const BREATH_BEEP_HIGH_HZ = 900;
+    const BREATH_BEEP_MID_HZ = 720;
+    const BREATH_BEEP_LOW_HZ = 420;
 
     const STREAK_THRESHOLD_SECONDS = 10 * 60;
     const STREAK_ROLLING_WINDOW_DAYS = 7;
@@ -1714,6 +1883,60 @@
 
     function closeModal(modal) {
       setModalVisibility(modal, false);
+    }
+
+    function playToneOnce(frequency, durationMs = 180, volume = 0.12) {
+      ensureAudioUnlocked()
+        .then(unlocked => {
+          if (!unlocked) return;
+          const AudioContextCtor = getAudioContextConstructor();
+          if (!AudioContextCtor) return;
+          if (!sharedAudioContext) {
+            sharedAudioContext = new AudioContextCtor();
+          }
+          const context = sharedAudioContext;
+          if (!context) return;
+
+          if (context.state === "suspended") {
+            context.resume().catch(() => {});
+          }
+
+          const oscillator = context.createOscillator();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency;
+
+          const gainNode = context.createGain();
+          gainNode.gain.value = volume;
+
+          oscillator.connect(gainNode).connect(context.destination);
+
+          const startTime = context.currentTime;
+          const stopTime = startTime + durationMs / 1000;
+          gainNode.gain.setTargetAtTime(0, stopTime - 0.05, 0.05);
+          oscillator.start(startTime);
+          oscillator.stop(stopTime);
+        })
+        .catch(() => {});
+    }
+
+    function formatAsClock(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutesPart = Math.floor(seconds / 60)
+        .toString()
+        .padStart(2, "0");
+      const secondsPart = Math.floor(seconds % 60)
+        .toString()
+        .padStart(2, "0");
+      return `${minutesPart}:${secondsPart}`;
+    }
+
+    function updateBreathingDurationLabel(valueMinutes) {
+      if (breathingDurationLabel) {
+        breathingDurationLabel.textContent = formatAsClock(valueMinutes * 60);
+      }
+      if (breathingRemaining) {
+        breathingRemaining.textContent = formatAsClock(valueMinutes * 60);
+      }
     }
 
     function formatFact(label, value, suffix = "") {
@@ -3222,6 +3445,213 @@
       return;
     }
 
+    function clearBreathingTimers() {
+      if (breathingPhaseRaf) {
+        cancelAnimationFrame(breathingPhaseRaf);
+        breathingPhaseRaf = null;
+      }
+      if (breathingRemainingInterval) {
+        clearInterval(breathingRemainingInterval);
+        breathingRemainingInterval = null;
+      }
+    }
+
+    function resetBreathingUI() {
+      clearBreathingTimers();
+      breathingSessionActive = false;
+      breathingStopRequested = false;
+      breathingSessionEndAt = 0;
+      breathingCurrentPhase = null;
+      breathingPhaseStart = 0;
+      breathingPhaseDuration = 0;
+      breathingCountdownLastValue = null;
+
+      if (breathingStartBtn) {
+        breathingStartBtn.disabled = false;
+      }
+      if (breathingStopBtn) {
+        breathingStopBtn.disabled = true;
+      }
+      if (breathingDurationSlider) {
+        if (!breathingDurationSlider.value) {
+          breathingDurationSlider.value = BREATHING_DEFAULT_MINUTES;
+        }
+        breathingDurationSlider.disabled = false;
+      }
+
+      const defaultMinutes = breathingDurationSlider
+        ? Number(breathingDurationSlider.value)
+        : BREATHING_DEFAULT_MINUTES;
+      updateBreathingDurationLabel(defaultMinutes || BREATHING_DEFAULT_MINUTES);
+
+      if (breathingPhaseLabel) {
+        breathingPhaseLabel.textContent = "Bereit?";
+      }
+      if (breathingCountdown) {
+        breathingCountdown.textContent = "–";
+      }
+      if (breathingStatusText) {
+        breathingStatusText.textContent = "Bereit zum Start.";
+      }
+    }
+
+    function finishBreathingSession(completed) {
+      clearBreathingTimers();
+      const remainingSeconds = Math.max(0, Math.round((breathingSessionEndAt - now()) / 1000));
+      breathingSessionActive = false;
+      breathingStopRequested = false;
+      breathingSessionEndAt = 0;
+      breathingPhaseStart = 0;
+      breathingPhaseDuration = 0;
+      breathingCurrentPhase = null;
+      breathingCountdownLastValue = null;
+
+      if (breathingStartBtn) {
+        breathingStartBtn.disabled = false;
+      }
+      if (breathingStopBtn) {
+        breathingStopBtn.disabled = true;
+      }
+      if (breathingDurationSlider) {
+        breathingDurationSlider.disabled = false;
+      }
+
+      if (breathingRemaining) {
+        const fallbackSeconds = breathingDurationSlider
+          ? Number(breathingDurationSlider.value) * 60
+          : BREATHING_DEFAULT_MINUTES * 60;
+        const secondsToShow = completed
+          ? 0
+          : breathingSessionEndAt > 0
+            ? remainingSeconds
+            : fallbackSeconds;
+        breathingRemaining.textContent = formatAsClock(secondsToShow);
+      }
+
+      if (breathingPhaseLabel) {
+        breathingPhaseLabel.textContent = completed ? "Fertig!" : "Bereit?";
+      }
+      if (breathingCountdown) {
+        breathingCountdown.textContent = completed ? "0" : "–";
+      }
+      if (breathingStatusText) {
+        breathingStatusText.textContent = completed
+          ? "Zeit abgelaufen. Du kannst das Fenster schließen."
+          : "Atemübung beendet.";
+      }
+    }
+
+    function updateBreathingRemaining() {
+      if (!breathingRemaining || !breathingSessionActive) {
+        return;
+      }
+      const remainingMs = Math.max(breathingSessionEndAt - now(), 0);
+      breathingRemaining.textContent = formatAsClock(remainingMs / 1000);
+      if (remainingMs <= 0) {
+        finishBreathingSession(true);
+      }
+    }
+
+    function startBreathingPhase(phase) {
+      if (!breathingSessionActive) {
+        return;
+      }
+
+      breathingCurrentPhase = phase;
+      breathingPhaseStart = now();
+      breathingPhaseDuration = phase === "inhale" ? BREATH_IN_DURATION_MS : BREATH_OUT_DURATION_MS;
+      breathingCountdownLastValue = null;
+
+      if (breathingPhaseLabel) {
+        breathingPhaseLabel.textContent = phase === "inhale" ? "Einatmen" : "Ausatmen";
+      }
+
+      const tick = () => {
+        if (!breathingSessionActive) {
+          return;
+        }
+
+        const elapsed = now() - breathingPhaseStart;
+        const baseValue = phase === "inhale" ? BREATH_IN_START_VALUE : BREATH_OUT_START_VALUE;
+        const countdownValue = Math.max(0, baseValue - Math.floor(elapsed / 1000));
+
+        if (countdownValue !== breathingCountdownLastValue) {
+          breathingCountdownLastValue = countdownValue;
+          if (breathingCountdown) {
+            breathingCountdown.textContent = String(countdownValue);
+          }
+
+          if (phase === "inhale" && (countdownValue === 2 || countdownValue === 1)) {
+            playToneOnce(countdownValue === 2 ? BREATH_BEEP_MID_HZ : BREATH_BEEP_HIGH_HZ);
+          }
+
+          if (phase === "exhale" && (countdownValue === 4 || countdownValue === 0)) {
+            playToneOnce(countdownValue === 0 ? BREATH_BEEP_LOW_HZ : BREATH_BEEP_HIGH_HZ);
+          }
+        }
+
+        const shouldStopSession = now() >= breathingSessionEndAt;
+        const phaseComplete = elapsed >= breathingPhaseDuration;
+
+        if (shouldStopSession || phaseComplete || breathingStopRequested) {
+          if (breathingStopRequested) {
+            finishBreathingSession(false);
+            return;
+          }
+          if (shouldStopSession) {
+            finishBreathingSession(true);
+            return;
+          }
+
+          startBreathingPhase(phase === "inhale" ? "exhale" : "inhale");
+          return;
+        }
+
+        breathingPhaseRaf = requestAnimationFrame(tick);
+      };
+
+      tick();
+    }
+
+    function startBreathingSession() {
+      if (breathingSessionActive) {
+        return;
+      }
+
+      const requestedMinutes = breathingDurationSlider
+        ? Number(breathingDurationSlider.value)
+        : BREATHING_DEFAULT_MINUTES;
+      const durationMinutes = Math.max(
+        BREATHING_MINUTES_MIN,
+        Math.min(BREATHING_MINUTES_MAX, Number.isFinite(requestedMinutes) ? requestedMinutes : 0)
+      );
+
+      if (breathingDurationSlider) {
+        breathingDurationSlider.value = durationMinutes;
+        breathingDurationSlider.disabled = true;
+      }
+
+      clearBreathingTimers();
+      breathingSessionEndAt = now() + durationMinutes * 60 * 1000;
+      breathingSessionActive = true;
+      breathingStopRequested = false;
+      updateBreathingDurationLabel(durationMinutes);
+
+      if (breathingStatusText) {
+        breathingStatusText.textContent = "Los geht's!";
+      }
+      if (breathingStartBtn) {
+        breathingStartBtn.disabled = true;
+      }
+      if (breathingStopBtn) {
+        breathingStopBtn.disabled = false;
+      }
+
+      updateBreathingRemaining();
+      breathingRemainingInterval = setInterval(updateBreathingRemaining, 200);
+      startBreathingPhase("inhale");
+    }
+
     // --- Inhalte laden ---
     fetch("mindfulness.json")
       .then(res => {
@@ -3732,6 +4162,67 @@
           mindfulnessPromptBtn.disabled = false;
         }
       });
+    }
+
+    if (breathingBtn) {
+      breathingBtn.addEventListener("click", () => {
+        resetBreathingUI();
+        if (breathingModal) {
+          openModal(breathingModal);
+        }
+      });
+    }
+
+    if (breathingCloseBtn) {
+      breathingCloseBtn.addEventListener("click", () => {
+        if (breathingSessionActive) {
+          breathingStopRequested = true;
+          finishBreathingSession(false);
+        }
+        if (breathingModal) {
+          closeModal(breathingModal);
+        }
+      });
+    }
+
+    if (breathingModal) {
+      breathingModal.addEventListener("click", event => {
+        if (event.target === breathingModal) {
+          breathingStopRequested = true;
+          finishBreathingSession(false);
+          closeModal(breathingModal);
+        }
+      });
+    }
+
+    if (breathingDurationSlider) {
+      breathingDurationSlider.addEventListener("input", () => {
+        const value = Number(breathingDurationSlider.value);
+        const clamped = Math.max(
+          BREATHING_MINUTES_MIN,
+          Math.min(BREATHING_MINUTES_MAX, Number.isFinite(value) ? value : BREATHING_DEFAULT_MINUTES)
+        );
+        breathingDurationSlider.value = clamped;
+        updateBreathingDurationLabel(clamped);
+      });
+    }
+
+    if (breathingStartBtn) {
+      breathingStartBtn.addEventListener("click", async () => {
+        await ensureAudioUnlocked();
+        startBreathingSession();
+      });
+    }
+
+    if (breathingStopBtn) {
+      breathingStopBtn.addEventListener("click", () => {
+        breathingStopRequested = true;
+        finishBreathingSession(false);
+      });
+    }
+
+    if (breathingDurationSlider || breathingModal) {
+      resetBreathingUI();
     }
 
     if (exerciseDetailsBtn) {
