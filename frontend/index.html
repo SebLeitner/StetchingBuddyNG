@@ -1303,8 +1303,8 @@
     let breakBellAudioReadyPromise = null;
     const BREATH_IN_DURATION_MS = 5000;
     const BREATH_OUT_DURATION_MS = 10000;
-    const BREATH_IN_START_VALUE = 4;
-    const BREATH_OUT_START_VALUE = 9;
+    const BREATH_IN_START_VALUE = 5;
+    const BREATH_OUT_START_VALUE = 10;
     const BREATHING_MINUTES_MIN = 1;
     const BREATHING_MINUTES_MAX = 10;
     const BREATHING_DEFAULT_MINUTES = 5;
@@ -3560,11 +3560,18 @@
       breathingCurrentPhase = phase;
       breathingPhaseStart = now();
       breathingPhaseDuration = phase === "inhale" ? BREATH_IN_DURATION_MS : BREATH_OUT_DURATION_MS;
-      breathingCountdownLastValue = null;
+      const baseValue = phase === "inhale" ? BREATH_IN_START_VALUE : BREATH_OUT_START_VALUE;
+      breathingCountdownLastValue = baseValue;
 
       if (breathingPhaseLabel) {
         breathingPhaseLabel.textContent = phase === "inhale" ? "Einatmen" : "Ausatmen";
       }
+
+      if (breathingCountdown) {
+        breathingCountdown.textContent = String(baseValue);
+      }
+
+      playToneOnce(BREATH_BEEP_LOW_HZ);
 
       const tick = () => {
         if (!breathingSessionActive) {
@@ -3572,8 +3579,7 @@
         }
 
         const elapsed = now() - breathingPhaseStart;
-        const baseValue = phase === "inhale" ? BREATH_IN_START_VALUE : BREATH_OUT_START_VALUE;
-        const countdownValue = Math.max(0, baseValue - Math.floor(elapsed / 1000));
+        const countdownValue = Math.max(1, baseValue - Math.floor(elapsed / 1000));
 
         if (countdownValue !== breathingCountdownLastValue) {
           breathingCountdownLastValue = countdownValue;
@@ -3581,12 +3587,16 @@
             breathingCountdown.textContent = String(countdownValue);
           }
 
-          if (phase === "inhale" && (countdownValue === 2 || countdownValue === 1)) {
-            playToneOnce(countdownValue === 2 ? BREATH_BEEP_MID_HZ : BREATH_BEEP_HIGH_HZ);
+          if (phase === "inhale" && countdownValue === 1) {
+            playToneOnce(BREATH_BEEP_HIGH_HZ);
           }
 
-          if (phase === "exhale" && (countdownValue === 4 || countdownValue === 0)) {
-            playToneOnce(countdownValue === 0 ? BREATH_BEEP_LOW_HZ : BREATH_BEEP_HIGH_HZ);
+          if (phase === "exhale" && countdownValue === 5) {
+            playToneOnce(BREATH_BEEP_MID_HZ);
+          }
+
+          if (countdownValue === 1 && phase === "exhale") {
+            playToneOnce(BREATH_BEEP_HIGH_HZ);
           }
         }
 
