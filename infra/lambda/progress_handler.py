@@ -157,9 +157,11 @@ def _store_progress_entry(event: Mapping[str, Any]) -> Dict[str, Any]:
     started_at = _parse_iso_timestamp(payload.get("startedAt"), "startedAt")
     finished_at = _parse_iso_timestamp(payload.get("finishedAt"), "finishedAt")
 
+    completed_at = finished_at or started_at or _utc_now_iso()
+
     item: Dict[str, Any] = {
         "client_id": client_id,
-        "completed_at": _utc_now_iso(),
+        "completed_at": completed_at,
         "exercise_id": exercise_id,
         "total_sets": total_sets,
         "sets_completed": sets_completed,
@@ -189,6 +191,43 @@ def _store_progress_entry(event: Mapping[str, Any]) -> Dict[str, Any]:
     return json_response(201, {"status": "stored", "completedAt": item["completed_at"]})
 
 
+def _delete_progress_entry(event: Mapping[str, Any]) -> Dict[str, Any]:
+    params = event.get("queryStringParameters") if isinstance(event, Mapping) else None
+    raw_client_id = None
+    raw_completed_at = None
+
+    if isinstance(params, dict):
+        raw_client_id = params.get("clientId") or params.get("client_id")
+        raw_completed_at = params.get("completedAt") or params.get("completed_at")
+
+    if raw_client_id is None or raw_completed_at is None:
+        payload = parse_json_body(event)
+        raw_client_id = raw_client_id or payload.get("clientId") or payload.get("client_id")
+        raw_completed_at = raw_completed_at or payload.get("completedAt") or payload.get("completed_at")
+
+    client_id = expect_string(raw_client_id, "clientId")
+    completed_at = _parse_iso_timestamp(raw_completed_at, "completedAt")
+    if completed_at is None:
+        raise HttpError(400, "'completedAt' muss angegeben werden")
+
+    try:
+        progress_table.delete_item(
+            Key={"client_id": client_id, "completed_at": completed_at},
+            ConditionExpression="attribute_exists(client_id) AND attribute_exists(completed_at)",
+        )
+    except ClientError as exc:  # pragma: no cover - AWS client errors
+        error_code = exc.response.get("Error", {}).get("Code")
+        if error_code == "ConditionalCheckFailedException":
+            raise HttpError(404, "Eintrag wurde nicht gefunden") from exc
+        LOGGER.exception("Löschen des Übungsfortschritts fehlgeschlagen")
+        raise HttpError(502, "Eintrag konnte nicht gelöscht werden") from exc
+    except BotoCoreError as exc:  # pragma: no cover - AWS client errors
+        LOGGER.exception("Löschen des Übungsfortschritts fehlgeschlagen")
+        raise HttpError(502, "Eintrag konnte nicht gelöscht werden") from exc
+
+    return json_response(200, {"status": "deleted", "completedAt": completed_at})
+
+
 @with_error_handling
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     method = (
@@ -203,5 +242,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         return _list_progress_entries(event)
     if method == "POST":
         return _store_progress_entry(event)
+    if method == "DELETE":
+        return _delete_progress_entry(event)
 
     raise HttpError(405, "Methode wird nicht unterstützt")

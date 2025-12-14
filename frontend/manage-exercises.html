@@ -533,18 +533,6 @@
         return `${exercisesApiUrl}/${suffix.replace(/^\//, "")}`;
       };
 
-      const isTestExerciseId = (id) => {
-        if (!id) {
-          return false;
-        }
-        const normalized = String(id).trim().toLowerCase();
-        return (
-          normalized === "test" ||
-          normalized === "test übung" ||
-          normalized === "testübung"
-        );
-      };
-
       const setStatus = (message, type = "info") => {
         statusArea.textContent = message;
         statusArea.dataset.type = type;
@@ -877,8 +865,7 @@
             .filter(
               (entry) =>
                 entry &&
-                typeof entry.id === "string" &&
-                !isTestExerciseId(entry.id)
+                typeof entry.id === "string"
             )
             .sort((a, b) => (a.name || "").localeCompare(b.name || "", "de"));
           if (!sanitized.length) {

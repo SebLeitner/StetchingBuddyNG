@@ -72,6 +72,34 @@
       color: var(--text-secondary);
     }
 
+    .streak-indicator {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      margin: 0 auto;
+      padding: 0.35rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(243, 156, 18, 0.18);
+      color: #c26a00;
+      font-weight: 600;
+      font-size: 0.95rem;
+      box-shadow: inset 0 0 0 1px rgba(243, 156, 18, 0.3);
+    }
+
+    .streak-indicator[hidden] {
+      display: none !important;
+    }
+
+    .streak-indicator__icon {
+      font-size: 1.15rem;
+      line-height: 1;
+    }
+
+    .streak-indicator__value {
+      font-variant-numeric: tabular-nums;
+    }
+
     label {
       font-weight: 600;
       display: block;
@@ -419,6 +447,12 @@
       grid-column: 1 / -1;
     }
 
+    .breathing-button {
+      background: linear-gradient(135deg, #34d399, #059669);
+      box-shadow: 0 12px 24px rgba(5, 150, 105, 0.32);
+      grid-column: 1 / -1;
+    }
+
     .mindfulness-button:hover:not(:disabled) {
       transform: translateY(-1px);
       filter: brightness(1.05);
@@ -673,6 +707,56 @@
       gap: 0.75rem;
     }
 
+    .rep-selection-group {
+      display: grid;
+      gap: 0.75rem;
+    }
+
+    @media (min-width: 720px) {
+      .rep-selection-group {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+    }
+
+    .rep-selection {
+      display: grid;
+      gap: 0.45rem;
+      padding: 0.85rem 1rem;
+      border-radius: 18px;
+      background: rgba(61, 139, 255, 0.08);
+      border: 1px solid rgba(61, 139, 255, 0.15);
+    }
+
+    .rep-selection__label {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      font-weight: 600;
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      gap: 0.75rem;
+    }
+
+    .rep-selection__value {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .rep-selection input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent-strong);
+    }
+
+    .rep-selection input[type="range"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .rep-selection[data-disabled="true"] {
+      opacity: 0.65;
+    }
+
     .session-display {
       min-height: 3.2rem;
       display: flex;
@@ -720,6 +804,81 @@
     .exercise-details-content {
       display: grid;
       gap: 1rem;
+    }
+
+    .breathing-content {
+      display: grid;
+      gap: 1rem;
+    }
+
+    .breathing-description {
+      margin: 0;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      font-size: 0.95rem;
+    }
+
+    .breathing-slider {
+      display: grid;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-radius: 16px;
+      background: rgba(61, 139, 255, 0.08);
+      border: 1px solid rgba(61, 139, 255, 0.15);
+    }
+
+    .breathing-slider label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin: 0;
+    }
+
+    .breathing-duration-value {
+      font-weight: 700;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .breathing-session-display {
+      display: grid;
+      gap: 0.25rem;
+      padding: 1rem 1.25rem;
+      border-radius: 16px;
+      background: rgba(26, 42, 58, 0.06);
+      border: 1px solid rgba(61, 139, 255, 0.12);
+    }
+
+    .breathing-phase {
+      font-weight: 700;
+      font-size: 1.05rem;
+      color: var(--text-primary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .breathing-countdown {
+      font-size: clamp(2.4rem, 6vw, 3.2rem);
+      font-weight: 700;
+      color: var(--accent-strong);
+      letter-spacing: 0.05em;
+    }
+
+    .breathing-remaining {
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .breathing-status-text {
+      color: var(--text-secondary);
+      margin-right: auto;
+      font-size: 0.95rem;
     }
 
     .exercise-details-instruction {
@@ -775,6 +934,17 @@
     <header>
       <h1>🧘 Stretch Buddy</h1>
       <p>Weniger Knacken, mehr Flex!</p>
+      <div
+        id="streakIndicator"
+        class="streak-indicator"
+        role="status"
+        aria-live="polite"
+        hidden
+      >
+        <span class="streak-indicator__icon" aria-hidden="true">🔥</span>
+        <span class="streak-indicator__value" id="streakCount">0</span>
+        <span class="streak-indicator__label" id="streakLabel">Tage am Stück</span>
+      </div>
     </header>
 
     <div class="input-group">
@@ -801,6 +971,7 @@
       <div class="primary-actions">
         <button id="openSessionBtn" class="primary-button" type="button" disabled>Start</button>
         <button id="beatsRadioBtn" class="beats-radio-button" type="button">Beats Radio</button>
+        <button id="breathingBtn" class="breathing-button" type="button">Atemübung</button>
         <button id="mindfulnessPromptBtn" class="mindfulness-button" type="button">Achtsamkeitsspruch</button>
       </div>
       <div class="secondary-actions">
@@ -830,6 +1001,48 @@
           <div id="display" class="session-display">Bereit?</div>
           <div class="progress-container" id="repProgressContainer" hidden>
             <div class="progress-bar" id="repProgressBar" aria-hidden="true"></div>
+          </div>
+          <div class="rep-selection-group" id="repSelectionGroup" hidden>
+            <div
+              class="rep-selection"
+              id="setSelectionSection"
+              role="group"
+              aria-labelledby="setCountLabel"
+              hidden
+            >
+              <div class="rep-selection__label" id="setCountLabel">
+                <span>Anzahl der Sätze</span>
+                <span class="rep-selection__value" id="setCountValue">0</span>
+              </div>
+              <input
+                type="range"
+                id="setCountSlider"
+                min="1"
+                step="1"
+                value="1"
+                aria-labelledby="setCountLabel"
+              />
+            </div>
+            <div
+              class="rep-selection"
+              id="repSelectionSection"
+              role="group"
+              aria-labelledby="repCountLabel"
+              hidden
+            >
+              <div class="rep-selection__label" id="repCountLabel">
+                <span>Wiederholungen pro Satz</span>
+                <span class="rep-selection__value" id="repCountValue">0</span>
+              </div>
+              <input
+                type="range"
+                id="repCountSlider"
+                min="1"
+                step="1"
+                value="1"
+                aria-labelledby="repCountLabel"
+              />
+            </div>
           </div>
         </section>
         <p id="sessionSummary" class="session-summary" hidden></p>
@@ -880,6 +1093,63 @@
     </div>
   </div>
 
+  <div class="modal-backdrop" id="breathingModal" hidden>
+    <div
+      class="modal-card modal-card--narrow"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="breathingModalTitle"
+    >
+      <header class="modal-header">
+        <div>
+          <h2 id="breathingModalTitle">Atemübung</h2>
+        </div>
+        <button id="breathingCloseBtn" type="button" class="ghost-button ghost-button--small">
+          Schließen
+        </button>
+      </header>
+      <div class="modal-content breathing-content">
+        <p class="breathing-description">
+          Wähle eine Dauer zwischen 1 und 10 Minuten. Jede Runde besteht aus 5 Sekunden Einatmen
+          und 10 Sekunden Ausatmen.
+        </p>
+        <div class="breathing-slider">
+          <label for="breathingDurationSlider">
+            <span>Sitzungsdauer</span>
+            <span class="breathing-duration-value" id="breathingDurationLabel">5:00</span>
+          </label>
+          <input
+            type="range"
+            id="breathingDurationSlider"
+            min="1"
+            max="10"
+            step="1"
+            value="5"
+          />
+        </div>
+        <div class="breathing-session-display">
+          <div class="breathing-phase">
+            <span id="breathingPhaseLabel">Bereit?</span>
+            <span class="breathing-remaining" id="breathingRemainingWrapper">
+              <span>Restzeit</span>
+              <strong id="breathingRemaining">05:00</strong>
+            </span>
+          </div>
+          <div class="breathing-countdown" id="breathingCountdown">–</div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <span class="breathing-status-text" id="breathingStatusText">Bereit zum Start.</span>
+        <div class="start-controls">
+          <button id="breathingStartBtn" class="primary-button" type="button">Start</button>
+          <button id="breathingStopBtn" class="secondary-button" type="button" disabled>
+            Abbrechen
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="modal-backdrop" id="debugModal" hidden>
     <div class="modal-card modal-card--narrow" role="dialog" aria-modal="true" aria-labelledby="debugModalTitle">
       <header class="modal-header">
@@ -900,12 +1170,26 @@
     const openSessionBtn = document.getElementById("openSessionBtn");
     const beatsRadioBtn = document.getElementById("beatsRadioBtn");
     const mindfulnessPromptBtn = document.getElementById("mindfulnessPromptBtn");
+    const breathingBtn = document.getElementById("breathingBtn");
+    const breathingModal = document.getElementById("breathingModal");
+    const breathingCloseBtn = document.getElementById("breathingCloseBtn");
+    const breathingDurationSlider = document.getElementById("breathingDurationSlider");
+    const breathingDurationLabel = document.getElementById("breathingDurationLabel");
+    const breathingPhaseLabel = document.getElementById("breathingPhaseLabel");
+    const breathingCountdown = document.getElementById("breathingCountdown");
+    const breathingRemaining = document.getElementById("breathingRemaining");
+    const breathingStatusText = document.getElementById("breathingStatusText");
+    const breathingStartBtn = document.getElementById("breathingStartBtn");
+    const breathingStopBtn = document.getElementById("breathingStopBtn");
     const debugLogBtn = document.getElementById("debugLogBtn");
     const exerciseModal = document.getElementById("exerciseModal");
     const sessionCloseBtn = document.getElementById("sessionCloseBtn");
     const exerciseModalTitle = document.getElementById("exerciseModalTitle");
     const exerciseFacts = document.getElementById("exerciseFacts");
     const sessionSummary = document.getElementById("sessionSummary");
+    const streakIndicator = document.getElementById("streakIndicator");
+    const streakCountEl = document.getElementById("streakCount");
+    const streakLabelEl = document.getElementById("streakLabel");
     const sessionControls = document.getElementById("sessionControls");
     const exerciseOverviewSection = document.querySelector(".exercise-overview");
     const exerciseDetailsBtn = document.getElementById("exerciseDetailsBtn");
@@ -915,6 +1199,13 @@
     const closeExerciseDetailsBtn = document.getElementById("closeExerciseDetailsBtn");
     const breakBellToggle = document.getElementById("breakBellToggle");
     const breakBellState = document.getElementById("breakBellState");
+    const repSelectionGroup = document.getElementById("repSelectionGroup");
+    const repSelectionSection = document.getElementById("repSelectionSection");
+    const repCountSlider = document.getElementById("repCountSlider");
+    const repCountValue = document.getElementById("repCountValue");
+    const setSelectionSection = document.getElementById("setSelectionSection");
+    const setCountSlider = document.getElementById("setCountSlider");
+    const setCountValue = document.getElementById("setCountValue");
 
     const COUNTDOWN_MIN_MS = 100;
     const COUNTDOWN_MAX_MS = 1000;
@@ -923,6 +1214,12 @@
     let voiceMode = "auto";
     let exercises = [];
     let exercise = null;
+    let selectedRepCount = null;
+    let activeRepCount = null;
+    let repSelectionExerciseId = null;
+    let selectedSetCount = null;
+    let activeSetCount = null;
+    let setSelectionExerciseId = null;
     let mindfulnessPrompts = [];
     let mindfulnessPromptActive = false;
     let skipRequested = false;
@@ -948,6 +1245,15 @@
     let audioUnlocked = false;
     let lastAudioUnlockError = "";
     let visibleModalCount = 0;
+    let breathingSessionActive = false;
+    let breathingSessionEndAt = 0;
+    let breathingPhaseRaf = null;
+    let breathingRemainingInterval = null;
+    let breathingCountdownLastValue = null;
+    let breathingPhaseStart = 0;
+    let breathingPhaseDuration = 0;
+    let breathingCurrentPhase = null;
+    let breathingStopRequested = false;
 
     const display = document.getElementById("display");
     const startBtn = document.getElementById("sessionStartBtn");
@@ -995,6 +1301,43 @@
     const MINDFULNESS_PROMPT_DELAY_MS = 3000;
     let breakBellAudioElement = null;
     let breakBellAudioReadyPromise = null;
+    const BREATH_IN_DURATION_MS = 5000;
+    const BREATH_OUT_DURATION_MS = 10000;
+    const BREATH_IN_START_VALUE = 5;
+    const BREATH_OUT_START_VALUE = 10;
+    const BREATHING_MINUTES_MIN = 1;
+    const BREATHING_MINUTES_MAX = 10;
+    const BREATHING_DEFAULT_MINUTES = 5;
+    const BREATH_BEEP_HIGH_HZ = 900;
+    const BREATH_BEEP_MID_HZ = 720;
+    const BREATH_BEEP_LOW_HZ = 420;
+
+    const STREAK_THRESHOLD_SECONDS = 10 * 60;
+    const STREAK_ROLLING_WINDOW_DAYS = 7;
+    const STREAK_MIN_ACTIVE_DAYS = 4;
+    const STREAK_MAX_SKIPS_PER_WINDOW = STREAK_ROLLING_WINDOW_DAYS - STREAK_MIN_ACTIVE_DAYS;
+    const STREAK_FETCH_TIMEOUT_MS = 8000;
+    const TIME_KEYS = [
+      "completedAt",
+      "completed_at",
+      "finishedAt",
+      "finished_at",
+      "timestamp",
+      "createdAt",
+      "updatedAt",
+      "time",
+      "date",
+    ];
+    const DURATION_KEYS = [
+      "durationMs",
+      "duration_ms",
+      "durationMilliseconds",
+      "duration_milliseconds",
+      "duration",
+      "durationSeconds",
+      "duration_seconds",
+    ];
+    let streakFetchInFlight = null;
 
     const now = () => (typeof performance !== "undefined" && performance.now ? performance.now() : Date.now());
 
@@ -1059,6 +1402,205 @@
           : "/api/exercise-completions";
       }
       return "/api/exercise-completions";
+    }
+
+    function parseDateValue(value) {
+      if (!value && value !== 0) {
+        return null;
+      }
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+      if (typeof value === "number") {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) {
+          return null;
+        }
+        const date = new Date(trimmed);
+        return Number.isNaN(date.getTime()) ? null : date;
+      }
+      return null;
+    }
+
+    function getCompletionDate(entry) {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+      for (const key of TIME_KEYS) {
+        if (entry[key]) {
+          const parsed = parseDateValue(entry[key]);
+          if (parsed) {
+            return parsed;
+          }
+        }
+      }
+      if (entry.completed_at) {
+        return parseDateValue(entry.completed_at);
+      }
+      if (entry.finished_at) {
+        return parseDateValue(entry.finished_at);
+      }
+      return null;
+    }
+
+    function getStartOfDay(date) {
+      const result = new Date(date);
+      result.setHours(0, 0, 0, 0);
+      return result;
+    }
+
+    function getDurationSeconds(entry) {
+      if (!entry || typeof entry !== "object") {
+        return 0;
+      }
+      for (const key of DURATION_KEYS) {
+        if (!(key in entry)) {
+          continue;
+        }
+        const value = entry[key];
+        if (value === null || value === undefined) {
+          continue;
+        }
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return key.toLowerCase().includes("ms") ? value / 1000 : value;
+        }
+        if (typeof value === "string") {
+          const normalized = value.trim();
+          if (!normalized) {
+            continue;
+          }
+          const parsed = Number(normalized);
+          if (Number.isFinite(parsed)) {
+            return key.toLowerCase().includes("ms") ? parsed / 1000 : parsed;
+          }
+        }
+      }
+      return 0;
+    }
+
+    function buildDailyDurationMap(entries) {
+      const dailyDurations = new Map();
+      let earliestDate = null;
+      for (const entry of entries) {
+        const completedAt = getCompletionDate(entry);
+        if (!completedAt) {
+          continue;
+        }
+        const durationSeconds = getDurationSeconds(entry);
+        if (durationSeconds <= 0) {
+          continue;
+        }
+        const day = getStartOfDay(completedAt);
+        if (!earliestDate || day < earliestDate) {
+          earliestDate = day;
+        }
+        const key = day.toISOString().slice(0, 10);
+        const existing = dailyDurations.get(key) || 0;
+        dailyDurations.set(key, existing + durationSeconds);
+      }
+      return { dailyDurations, earliestDate };
+    }
+
+    function computeStreakStats(entries) {
+      const { dailyDurations, earliestDate } = buildDailyDurationMap(entries);
+      if (!earliestDate) {
+        return {
+          currentStreak: 0,
+          bestStreak: 0,
+          allowedSkipsRemaining: STREAK_MAX_SKIPS_PER_WINDOW,
+          lastResetDate: null,
+          hasSuccessfulDay: false,
+        };
+      }
+
+      const today = getStartOfDay(new Date());
+      const startDate = getStartOfDay(earliestDate);
+      const totalDays = Math.max(1, Math.floor((today - startDate) / 86400000) + 1);
+
+      let currentStreak = 0;
+      let bestStreak = 0;
+      let lastResetDate = null;
+      let hasSuccessfulDay = false;
+
+      const windowStatuses = [];
+      let trainingDaysInWindow = 0;
+      let restDaysInWindow = 0;
+
+      for (let offset = 0; offset < totalDays; offset += 1) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + offset);
+
+        const key = date.toISOString().slice(0, 10);
+        const durationSeconds = dailyDurations.get(key) || 0;
+        const isSuccess = durationSeconds >= STREAK_THRESHOLD_SECONDS;
+
+        const isToday = date.getTime() === today.getTime();
+        const isPending = isToday && !isSuccess;
+        const windowStatus = isSuccess ? "success" : isPending ? "pending" : "rest";
+
+        windowStatuses.push({ status: windowStatus, date: new Date(date) });
+        if (windowStatus === "success") {
+          trainingDaysInWindow += 1;
+        } else if (windowStatus === "rest") {
+          restDaysInWindow += 1;
+        }
+
+        while (windowStatuses.length > STREAK_ROLLING_WINDOW_DAYS) {
+          const removed = windowStatuses.shift();
+          if (removed?.status === "success") {
+            trainingDaysInWindow -= 1;
+          } else if (removed?.status === "rest") {
+            restDaysInWindow -= 1;
+          }
+        }
+
+        if (windowStatus !== "pending" && restDaysInWindow > STREAK_MAX_SKIPS_PER_WINDOW) {
+          lastResetDate = new Date(date);
+          if (windowStatus === "success") {
+            currentStreak = 1;
+            windowStatuses.length = 0;
+            windowStatuses.push({ status: "success", date: new Date(date) });
+            trainingDaysInWindow = 1;
+            restDaysInWindow = 0;
+            hasSuccessfulDay = true;
+          } else {
+            currentStreak = 0;
+            windowStatuses.length = 0;
+            windowStatuses.push({ status: "rest", date: new Date(date) });
+            trainingDaysInWindow = 0;
+            restDaysInWindow = 1;
+          }
+        } else if (windowStatus === "success") {
+          currentStreak += 1;
+          hasSuccessfulDay = true;
+        }
+
+        bestStreak = Math.max(bestStreak, currentStreak);
+      }
+
+      const restDaysForAllowance = windowStatuses.filter(
+        entry => entry.status === "rest" && entry.date.getTime() !== today.getTime(),
+      ).length;
+
+      const rawAllowedSkips = Math.max(
+        0,
+        STREAK_MAX_SKIPS_PER_WINDOW - restDaysForAllowance,
+      );
+      const allowedSkipsRemaining = hasSuccessfulDay
+        ? rawAllowedSkips
+        : STREAK_MAX_SKIPS_PER_WINDOW;
+
+      return {
+        currentStreak,
+        bestStreak,
+        allowedSkipsRemaining,
+        lastResetDate,
+        hasSuccessfulDay,
+      };
     }
 
     function collectMindfulnessPrompts(source, result) {
@@ -1166,6 +1708,97 @@
       debugLog.textContent = debugEntries.join("\n\n");
     }
 
+    async function refreshStreakIndicator() {
+      if (!streakIndicator || !streakCountEl || !streakLabelEl) {
+        return;
+      }
+      if (!PROGRESS_API_ENDPOINT) {
+        streakIndicator.hidden = true;
+        return;
+      }
+      if (streakFetchInFlight) {
+        try {
+          await streakFetchInFlight;
+        } catch (_err) {
+          // Fehler wurde bereits protokolliert.
+        }
+        return;
+      }
+
+      const fetchPromise = (async () => {
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(
+          () => controller.abort(),
+          STREAK_FETCH_TIMEOUT_MS,
+        );
+
+        try {
+          const response = await fetch(PROGRESS_API_ENDPOINT, { signal: controller.signal });
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+          const data = await response.json();
+          let entries = [];
+          if (Array.isArray(data)) {
+            entries = data;
+          } else if (data && Array.isArray(data.items)) {
+            entries = data.items;
+          } else if (data && Array.isArray(data.data)) {
+            entries = data.data;
+          }
+          if (!Array.isArray(entries)) {
+            entries = [];
+          }
+
+          const { currentStreak, allowedSkipsRemaining, hasSuccessfulDay } =
+            computeStreakStats(entries);
+
+          const labelText = currentStreak === 1 ? "Tag am Stück" : "Tage am Stück";
+          streakCountEl.textContent = String(currentStreak);
+          streakLabelEl.textContent = labelText;
+
+          const tooltipParts = [
+            "Mindestens 4 Trainingstage in 7 Tagen halten den Streak am Leben.",
+          ];
+          if (hasSuccessfulDay) {
+            if (allowedSkipsRemaining > 0) {
+              tooltipParts.push(
+                allowedSkipsRemaining === 1
+                  ? "Noch 1 freier Pausentag im aktuellen 7-Tage-Fenster."
+                  : `Noch ${allowedSkipsRemaining} freie Pausentage im aktuellen 7-Tage-Fenster.`,
+              );
+            } else {
+              tooltipParts.push("Derzeit kein freier Pausentag im 7-Tage-Fenster übrig.");
+            }
+          } else {
+            tooltipParts.push(
+              "Trainiere an vier Tagen innerhalb von sieben, um deinen Streak aufzubauen.",
+            );
+          }
+          streakIndicator.title = tooltipParts.join(" ");
+
+          streakIndicator.hidden = false;
+        } catch (error) {
+          if (controller.signal.aborted) {
+            appendDebug("Streak-Aktualisierung abgebrochen (Timeout).");
+          } else {
+            appendDebug("Streak-Aktualisierung fehlgeschlagen.", describeError(error));
+          }
+          streakIndicator.hidden = true;
+        } finally {
+          window.clearTimeout(timeoutId);
+          streakFetchInFlight = null;
+        }
+      })();
+
+      streakFetchInFlight = fetchPromise;
+      try {
+        await fetchPromise;
+      } catch (_err) {
+        // Fehler wurde bereits protokolliert.
+      }
+    }
+
     function buildMediaDebugDetails({ audio = null, error = null, reason = "" } = {}) {
       const lines = [];
       if (reason) {
@@ -1252,8 +1885,69 @@
       setModalVisibility(modal, false);
     }
 
+    function playToneOnce(frequency, durationMs = 180, volume = 0.12) {
+      ensureAudioUnlocked()
+        .then(unlocked => {
+          if (!unlocked) return;
+          const AudioContextCtor = getAudioContextConstructor();
+          if (!AudioContextCtor) return;
+          if (!sharedAudioContext) {
+            sharedAudioContext = new AudioContextCtor();
+          }
+          const context = sharedAudioContext;
+          if (!context) return;
+
+          if (context.state === "suspended") {
+            context.resume().catch(() => {});
+          }
+
+          const oscillator = context.createOscillator();
+          oscillator.type = "sine";
+          oscillator.frequency.value = frequency;
+
+          const gainNode = context.createGain();
+          gainNode.gain.value = volume;
+
+          oscillator.connect(gainNode).connect(context.destination);
+
+          const startTime = context.currentTime;
+          const stopTime = startTime + durationMs / 1000;
+          gainNode.gain.setTargetAtTime(0, stopTime - 0.05, 0.05);
+          oscillator.start(startTime);
+          oscillator.stop(stopTime);
+        })
+        .catch(() => {});
+    }
+
+    function formatAsClock(totalSeconds) {
+      const seconds = Math.max(0, Math.round(totalSeconds));
+      const minutesPart = Math.floor(seconds / 60)
+        .toString()
+        .padStart(2, "0");
+      const secondsPart = Math.floor(seconds % 60)
+        .toString()
+        .padStart(2, "0");
+      return `${minutesPart}:${secondsPart}`;
+    }
+
+    function updateBreathingDurationLabel(valueMinutes) {
+      if (breathingDurationLabel) {
+        breathingDurationLabel.textContent = formatAsClock(valueMinutes * 60);
+      }
+      if (breathingRemaining) {
+        breathingRemaining.textContent = formatAsClock(valueMinutes * 60);
+      }
+    }
+
     function formatFact(label, value, suffix = "") {
       return `${label}: ${value}${suffix}`;
+    }
+
+    function refreshRepSelectionGroupVisibility() {
+      if (!repSelectionGroup) return;
+      const repVisible = !!(repSelectionSection && !repSelectionSection.hidden);
+      const setVisible = !!(setSelectionSection && !setSelectionSection.hidden);
+      repSelectionGroup.hidden = !(repVisible || setVisible);
     }
 
     function refreshBreakBellStateLabel() {
@@ -1280,7 +1974,217 @@
       return !!(breakBellToggle && breakBellToggle.checked);
     }
 
-    function updateExerciseOverview(ex) {
+    function parseExerciseRepCount(ex) {
+      if (!ex) {
+        return null;
+      }
+      const raw = Number(ex.duration);
+      if (!Number.isFinite(raw)) {
+        return null;
+      }
+      const value = Math.trunc(raw);
+      return value > 0 ? value : null;
+    }
+
+    function parseExerciseSetCount(ex) {
+      if (!ex) {
+        return null;
+      }
+      const raw = Number(ex.sets);
+      if (!Number.isFinite(raw)) {
+        return null;
+      }
+      const value = Math.trunc(raw);
+      return value > 0 ? value : null;
+    }
+
+    function refreshRepSelectionLabel(current, max) {
+      if (!repCountValue) return;
+      if (Number.isInteger(max) && max > 0) {
+        repCountValue.textContent = `${current} von ${max}`;
+      } else {
+        repCountValue.textContent = `${current}`;
+      }
+    }
+
+    function refreshSetSelectionLabel(current, max) {
+      if (!setCountValue) return;
+      if (Number.isInteger(max) && max > 0) {
+        setCountValue.textContent = `${current} von ${max}`;
+      } else {
+        setCountValue.textContent = `${current}`;
+      }
+    }
+
+    function setRepSelectionDisabled(disabled) {
+      if (repCountSlider) {
+        repCountSlider.disabled = !!disabled;
+      }
+      if (repSelectionSection) {
+        repSelectionSection.dataset.disabled = disabled ? "true" : "false";
+      }
+    }
+
+    function setSetSelectionDisabled(disabled) {
+      if (setCountSlider) {
+        setCountSlider.disabled = !!disabled;
+      }
+      if (setSelectionSection) {
+        setSelectionSection.dataset.disabled = disabled ? "true" : "false";
+      }
+    }
+
+    function updateRepSelection(ex, { resetToDefault = false } = {}) {
+      if (!repSelectionSection || !repCountSlider || !repCountValue) {
+        selectedRepCount = null;
+        repSelectionExerciseId = null;
+        refreshRepSelectionGroupVisibility();
+        return;
+      }
+
+      const exerciseId = ex && ex.id ? String(ex.id) : null;
+      const defaultCount = parseExerciseRepCount(ex);
+
+      if (!defaultCount) {
+        repSelectionSection.hidden = true;
+        selectedRepCount = null;
+        repSelectionExerciseId = exerciseId;
+        activeRepCount = null;
+        setRepSelectionDisabled(true);
+        refreshRepSelectionGroupVisibility();
+        return;
+      }
+
+      repSelectionSection.hidden = false;
+      repCountSlider.min = "1";
+      repCountSlider.max = String(defaultCount);
+      repCountSlider.step = "1";
+
+      const isDifferentExercise = exerciseId !== repSelectionExerciseId;
+      repSelectionExerciseId = exerciseId;
+
+      const shouldReset =
+        resetToDefault ||
+        isDifferentExercise ||
+        !Number.isInteger(selectedRepCount) ||
+        selectedRepCount < 1;
+
+      let value = shouldReset
+        ? defaultCount
+        : Math.max(1, Math.min(selectedRepCount, defaultCount));
+
+      selectedRepCount = value;
+      repCountSlider.value = String(value);
+      setRepSelectionDisabled(sessionRunning);
+      refreshRepSelectionLabel(value, defaultCount);
+      refreshRepSelectionGroupVisibility();
+    }
+
+    function updateSetSelection(ex, { resetToDefault = false } = {}) {
+      if (!setSelectionSection || !setCountSlider || !setCountValue) {
+        selectedSetCount = null;
+        setSelectionExerciseId = null;
+        refreshRepSelectionGroupVisibility();
+        return;
+      }
+
+      const exerciseId = ex && ex.id ? String(ex.id) : null;
+      const defaultCount = parseExerciseSetCount(ex);
+
+      if (!defaultCount) {
+        setSelectionSection.hidden = true;
+        selectedSetCount = null;
+        setSelectionExerciseId = exerciseId;
+        activeSetCount = null;
+        setSetSelectionDisabled(true);
+        refreshRepSelectionGroupVisibility();
+        return;
+      }
+
+      setSelectionSection.hidden = false;
+      setCountSlider.min = "1";
+      setCountSlider.max = String(defaultCount);
+      setCountSlider.step = "1";
+
+      const isDifferentExercise = exerciseId !== setSelectionExerciseId;
+      setSelectionExerciseId = exerciseId;
+
+      const shouldReset =
+        resetToDefault ||
+        isDifferentExercise ||
+        !Number.isInteger(selectedSetCount) ||
+        selectedSetCount < 1;
+
+      let value = shouldReset
+        ? defaultCount
+        : Math.max(1, Math.min(selectedSetCount, defaultCount));
+
+      selectedSetCount = value;
+      setCountSlider.value = String(value);
+      setSetSelectionDisabled(sessionRunning);
+      refreshSetSelectionLabel(value, defaultCount);
+      refreshRepSelectionGroupVisibility();
+    }
+
+    function getConfiguredRepCount(ex) {
+      const defaultCount = parseExerciseRepCount(ex);
+      if (!defaultCount) {
+        return 0;
+      }
+      const sliderValue = repCountSlider ? Number(repCountSlider.value) : NaN;
+      if (Number.isInteger(sliderValue) && sliderValue >= 1) {
+        return Math.max(1, Math.min(sliderValue, defaultCount));
+      }
+      if (Number.isInteger(selectedRepCount) && selectedRepCount >= 1) {
+        return Math.max(1, Math.min(selectedRepCount, defaultCount));
+      }
+      return defaultCount;
+    }
+
+    function getConfiguredSetCount(ex) {
+      const defaultCount = parseExerciseSetCount(ex);
+      if (!defaultCount) {
+        return 0;
+      }
+      const sliderValue = setCountSlider ? Number(setCountSlider.value) : NaN;
+      if (Number.isInteger(sliderValue) && sliderValue >= 1) {
+        return Math.max(1, Math.min(sliderValue, defaultCount));
+      }
+      if (Number.isInteger(selectedSetCount) && selectedSetCount >= 1) {
+        return Math.max(1, Math.min(selectedSetCount, defaultCount));
+      }
+      return defaultCount;
+    }
+
+    function getSessionRepCount() {
+      const defaultCount = parseExerciseRepCount(exercise);
+      if (Number.isInteger(activeRepCount) && activeRepCount > 0) {
+        return activeRepCount;
+      }
+      if (Number.isInteger(selectedRepCount) && selectedRepCount > 0 && defaultCount) {
+        return Math.max(1, Math.min(selectedRepCount, defaultCount));
+      }
+      return defaultCount || 0;
+    }
+
+    function getSessionSetCount() {
+      const defaultCount = parseExerciseSetCount(exercise);
+      if (Number.isInteger(activeSetCount) && activeSetCount > 0) {
+        const limit = Number.isInteger(defaultCount) && defaultCount > 0 ? defaultCount : activeSetCount;
+        return Math.max(1, Math.min(activeSetCount, limit));
+      }
+      if (Number.isInteger(selectedSetCount) && selectedSetCount > 0 && defaultCount) {
+        return Math.max(1, Math.min(selectedSetCount, defaultCount));
+      }
+      return defaultCount || 0;
+    }
+
+    function updateExerciseOverview(
+      ex,
+      { resetRepSelection = false, resetSetSelection = false } = {}
+    ) {
+      updateSetSelection(ex, { resetToDefault: resetSetSelection });
+      updateRepSelection(ex, { resetToDefault: resetRepSelection });
       if (exerciseModalTitle) {
         exerciseModalTitle.textContent = ex && ex.name ? ex.name : "Übung";
       }
@@ -1497,6 +2401,12 @@
         sessionSummary.textContent = "";
       }
       resetProgress();
+      activeRepCount = null;
+      activeSetCount = null;
+      setRepSelectionDisabled(false);
+      setSetSelectionDisabled(false);
+      updateSetSelection(exercise, { resetToDefault: false });
+      updateRepSelection(exercise, { resetToDefault: false });
       if (display) {
         const preview = buildInstructionSpeech(exercise);
         display.textContent = preview || (exercise && exercise.name ? exercise.name : "Bereit?");
@@ -1509,6 +2419,30 @@
       pauseAwaitingResume = false;
       pauseResumeResolver = null;
       pauseContext = null;
+      const defaultRepCount = parseExerciseRepCount(exercise);
+      const defaultSetCount = parseExerciseSetCount(exercise);
+      activeRepCount = getConfiguredRepCount(exercise);
+      activeSetCount = getConfiguredSetCount(exercise);
+      if (activeRepCount > 0) {
+        selectedRepCount = activeRepCount;
+      }
+      if (activeSetCount > 0) {
+        selectedSetCount = activeSetCount;
+      }
+      if (repCountSlider && activeRepCount > 0) {
+        repCountSlider.value = String(activeRepCount);
+      }
+      if (setCountSlider && activeSetCount > 0) {
+        setCountSlider.value = String(activeSetCount);
+      }
+      setRepSelectionDisabled(true);
+      setSetSelectionDisabled(true);
+      if (defaultRepCount) {
+        refreshRepSelectionLabel(activeRepCount > 0 ? activeRepCount : defaultRepCount, defaultRepCount);
+      }
+      if (defaultSetCount) {
+        refreshSetSelectionLabel(activeSetCount > 0 ? activeSetCount : defaultSetCount, defaultSetCount);
+      }
       resetProgress();
       if (startBtn) {
         startBtn.disabled = true;
@@ -1548,6 +2482,12 @@
         sessionControls.hidden = true;
       }
       resetProgress();
+      activeRepCount = null;
+      activeSetCount = null;
+      setRepSelectionDisabled(false);
+      setSetSelectionDisabled(false);
+      updateSetSelection(exercise, { resetToDefault: false });
+      updateRepSelection(exercise, { resetToDefault: false });
       if (startBtn) {
         startBtn.hidden = false;
         startBtn.disabled = false;
@@ -1837,6 +2777,46 @@
         );
       });
     });
+
+    if (repCountSlider) {
+      repCountSlider.addEventListener("input", () => {
+        const defaultCount = parseExerciseRepCount(exercise);
+        if (!defaultCount) {
+          return;
+        }
+        let value = Math.round(Number(repCountSlider.value));
+        if (!Number.isInteger(value)) {
+          value = defaultCount;
+        }
+        value = Math.max(1, Math.min(value, defaultCount));
+        repCountSlider.value = String(value);
+        selectedRepCount = value;
+        if (!sessionRunning) {
+          activeRepCount = null;
+        }
+        refreshRepSelectionLabel(value, defaultCount);
+      });
+    }
+
+    if (setCountSlider) {
+      setCountSlider.addEventListener("input", () => {
+        const defaultCount = parseExerciseSetCount(exercise);
+        if (!defaultCount) {
+          return;
+        }
+        let value = Math.round(Number(setCountSlider.value));
+        if (!Number.isInteger(value)) {
+          value = defaultCount;
+        }
+        value = Math.max(1, Math.min(value, defaultCount));
+        setCountSlider.value = String(value);
+        selectedSetCount = value;
+        if (!sessionRunning) {
+          activeSetCount = null;
+        }
+        refreshSetSelectionLabel(value, defaultCount);
+      });
+    }
 
     if (breakBellToggle) {
       breakBellToggle.addEventListener("change", () => {
@@ -2465,6 +3445,223 @@
       return;
     }
 
+    function clearBreathingTimers() {
+      if (breathingPhaseRaf) {
+        cancelAnimationFrame(breathingPhaseRaf);
+        breathingPhaseRaf = null;
+      }
+      if (breathingRemainingInterval) {
+        clearInterval(breathingRemainingInterval);
+        breathingRemainingInterval = null;
+      }
+    }
+
+    function resetBreathingUI() {
+      clearBreathingTimers();
+      breathingSessionActive = false;
+      breathingStopRequested = false;
+      breathingSessionEndAt = 0;
+      breathingCurrentPhase = null;
+      breathingPhaseStart = 0;
+      breathingPhaseDuration = 0;
+      breathingCountdownLastValue = null;
+
+      if (breathingStartBtn) {
+        breathingStartBtn.disabled = false;
+      }
+      if (breathingStopBtn) {
+        breathingStopBtn.disabled = true;
+      }
+      if (breathingDurationSlider) {
+        if (!breathingDurationSlider.value) {
+          breathingDurationSlider.value = BREATHING_DEFAULT_MINUTES;
+        }
+        breathingDurationSlider.disabled = false;
+      }
+
+      const defaultMinutes = breathingDurationSlider
+        ? Number(breathingDurationSlider.value)
+        : BREATHING_DEFAULT_MINUTES;
+      updateBreathingDurationLabel(defaultMinutes || BREATHING_DEFAULT_MINUTES);
+
+      if (breathingPhaseLabel) {
+        breathingPhaseLabel.textContent = "Bereit?";
+      }
+      if (breathingCountdown) {
+        breathingCountdown.textContent = "–";
+      }
+      if (breathingStatusText) {
+        breathingStatusText.textContent = "Bereit zum Start.";
+      }
+    }
+
+    function finishBreathingSession(completed) {
+      clearBreathingTimers();
+      const remainingSeconds = Math.max(0, Math.round((breathingSessionEndAt - now()) / 1000));
+      breathingSessionActive = false;
+      breathingStopRequested = false;
+      breathingSessionEndAt = 0;
+      breathingPhaseStart = 0;
+      breathingPhaseDuration = 0;
+      breathingCurrentPhase = null;
+      breathingCountdownLastValue = null;
+
+      if (breathingStartBtn) {
+        breathingStartBtn.disabled = false;
+      }
+      if (breathingStopBtn) {
+        breathingStopBtn.disabled = true;
+      }
+      if (breathingDurationSlider) {
+        breathingDurationSlider.disabled = false;
+      }
+
+      if (breathingRemaining) {
+        const fallbackSeconds = breathingDurationSlider
+          ? Number(breathingDurationSlider.value) * 60
+          : BREATHING_DEFAULT_MINUTES * 60;
+        const secondsToShow = completed
+          ? 0
+          : breathingSessionEndAt > 0
+            ? remainingSeconds
+            : fallbackSeconds;
+        breathingRemaining.textContent = formatAsClock(secondsToShow);
+      }
+
+      if (breathingPhaseLabel) {
+        breathingPhaseLabel.textContent = completed ? "Fertig!" : "Bereit?";
+      }
+      if (breathingCountdown) {
+        breathingCountdown.textContent = completed ? "0" : "–";
+      }
+      if (breathingStatusText) {
+        breathingStatusText.textContent = completed
+          ? "Zeit abgelaufen. Du kannst das Fenster schließen."
+          : "Atemübung beendet.";
+      }
+    }
+
+    function updateBreathingRemaining() {
+      if (!breathingRemaining || !breathingSessionActive) {
+        return;
+      }
+      const remainingMs = Math.max(breathingSessionEndAt - now(), 0);
+      breathingRemaining.textContent = formatAsClock(remainingMs / 1000);
+      if (remainingMs <= 0) {
+        finishBreathingSession(true);
+      }
+    }
+
+    function startBreathingPhase(phase) {
+      if (!breathingSessionActive) {
+        return;
+      }
+
+      breathingCurrentPhase = phase;
+      breathingPhaseStart = now();
+      breathingPhaseDuration = phase === "inhale" ? BREATH_IN_DURATION_MS : BREATH_OUT_DURATION_MS;
+      const baseValue = phase === "inhale" ? BREATH_IN_START_VALUE : BREATH_OUT_START_VALUE;
+      breathingCountdownLastValue = baseValue;
+
+      if (breathingPhaseLabel) {
+        breathingPhaseLabel.textContent = phase === "inhale" ? "Einatmen" : "Ausatmen";
+      }
+
+      if (breathingCountdown) {
+        breathingCountdown.textContent = String(baseValue);
+      }
+
+      playToneOnce(BREATH_BEEP_LOW_HZ);
+
+      const tick = () => {
+        if (!breathingSessionActive) {
+          return;
+        }
+
+        const elapsed = now() - breathingPhaseStart;
+        const countdownValue = Math.max(1, baseValue - Math.floor(elapsed / 1000));
+
+        if (countdownValue !== breathingCountdownLastValue) {
+          breathingCountdownLastValue = countdownValue;
+          if (breathingCountdown) {
+            breathingCountdown.textContent = String(countdownValue);
+          }
+
+          if (phase === "inhale" && countdownValue === 1) {
+            playToneOnce(BREATH_BEEP_HIGH_HZ);
+          }
+
+          if (phase === "exhale" && countdownValue === 5) {
+            playToneOnce(BREATH_BEEP_MID_HZ);
+          }
+
+          if (countdownValue === 1 && phase === "exhale") {
+            playToneOnce(BREATH_BEEP_HIGH_HZ);
+          }
+        }
+
+        const shouldStopSession = now() >= breathingSessionEndAt;
+        const phaseComplete = elapsed >= breathingPhaseDuration;
+
+        if (shouldStopSession || phaseComplete || breathingStopRequested) {
+          if (breathingStopRequested) {
+            finishBreathingSession(false);
+            return;
+          }
+          if (shouldStopSession) {
+            finishBreathingSession(true);
+            return;
+          }
+
+          startBreathingPhase(phase === "inhale" ? "exhale" : "inhale");
+          return;
+        }
+
+        breathingPhaseRaf = requestAnimationFrame(tick);
+      };
+
+      tick();
+    }
+
+    function startBreathingSession() {
+      if (breathingSessionActive) {
+        return;
+      }
+
+      const requestedMinutes = breathingDurationSlider
+        ? Number(breathingDurationSlider.value)
+        : BREATHING_DEFAULT_MINUTES;
+      const durationMinutes = Math.max(
+        BREATHING_MINUTES_MIN,
+        Math.min(BREATHING_MINUTES_MAX, Number.isFinite(requestedMinutes) ? requestedMinutes : 0)
+      );
+
+      if (breathingDurationSlider) {
+        breathingDurationSlider.value = durationMinutes;
+        breathingDurationSlider.disabled = true;
+      }
+
+      clearBreathingTimers();
+      breathingSessionEndAt = now() + durationMinutes * 60 * 1000;
+      breathingSessionActive = true;
+      breathingStopRequested = false;
+      updateBreathingDurationLabel(durationMinutes);
+
+      if (breathingStatusText) {
+        breathingStatusText.textContent = "Los geht's!";
+      }
+      if (breathingStartBtn) {
+        breathingStartBtn.disabled = true;
+      }
+      if (breathingStopBtn) {
+        breathingStopBtn.disabled = false;
+      }
+
+      updateBreathingRemaining();
+      breathingRemainingInterval = setInterval(updateBreathingRemaining, 200);
+      startBreathingPhase("inhale");
+    }
+
     // --- Inhalte laden ---
     fetch("mindfulness.json")
       .then(res => {
@@ -2490,14 +3687,6 @@
 
     // --- Übungen laden ---
     const exercisesApiUrl = (window.STRETCH_COACH_CONFIG || {}).exercisesApiUrl;
-
-    const isTestExerciseId = id => {
-      if (!id) {
-        return false;
-      }
-      const normalized = String(id).trim().toLowerCase();
-      return normalized === "test" || normalized === "test übung" || normalized === "testübung";
-    };
 
     const normalizeExercises = data => {
       if (!data) {
@@ -2526,11 +3715,11 @@
         .then(normalizeExercises);
 
     const populateExercises = list => {
-      exercises = list.filter(entry => entry && typeof entry.id === "string" && !isTestExerciseId(entry.id));
+      exercises = list.filter(entry => entry && typeof entry.id === "string");
       select.innerHTML = exercises.map(e => `<option value="${e.id}">${e.name}</option>`).join("");
       exercise = exercises[0] ?? null;
       applyBreakBellPreset(exercise);
-      updateExerciseOverview(exercise);
+      updateExerciseOverview(exercise, { resetRepSelection: true, resetSetSelection: true });
       resetSessionUI();
       if (openSessionBtn) {
         openSessionBtn.disabled = exercises.length === 0;
@@ -2653,7 +3842,8 @@
         await speak("Weiter mit dem nächsten Satz. Los!");
       }
 
-      for (let i = 1; i <= exercise.duration && !aborted; i++) {
+      const repsPerSet = Math.max(0, getSessionRepCount());
+      for (let i = 1; i <= repsPerSet && !aborted; i++) {
         display.textContent = `Wiederholung ${i}`;
         await runRepTimer(exercise.rep_time);
         if (aborted) break;
@@ -2774,6 +3964,7 @@
         }
 
         appendDebug("Fortschritt erfolgreich gespeichert.");
+        refreshStreakIndicator().catch(() => {});
       } catch (error) {
         if (controller.signal.aborted) {
           appendDebug("Fortschrittsspeicherung abgebrochen (Timeout).");
@@ -2811,16 +4002,17 @@
       }
 
       const exerciseStartAt = Date.now();
+      const plannedSetCount = Math.max(1, getSessionSetCount());
       let completedSets = 0;
 
-      for (let set = 1; set <= exercise.sets && !aborted; set++) {
-        const withPrep = (set === 1);
+      for (let set = 1; set <= plannedSetCount && !aborted; set++) {
+        const withPrep = set === 1;
         await runSet(set, withPrep);
         if (aborted) break;
 
         completedSets += 1;
 
-        if (set < exercise.sets) {
+        if (set < plannedSetCount) {
           const wantsMindfulness =
             typeof exercise.mindfulness === "string" &&
             exercise.mindfulness.trim().toLowerCase() === "yes";
@@ -2916,7 +4108,7 @@
         await speak("Fertig! Gut gemacht.");
         await recordExerciseCompletion({
           exercise,
-          totalSets: exercise.sets,
+          totalSets: plannedSetCount,
           completedSets,
           startedAt: exerciseStartAt,
           finishedAt: exerciseFinishedAt,
@@ -2933,7 +4125,7 @@
       const id = select.value;
       exercise = exercises.find(e => e.id === id) ?? null;
       applyBreakBellPreset(exercise);
-      updateExerciseOverview(exercise);
+      updateExerciseOverview(exercise, { resetRepSelection: true, resetSetSelection: true });
       if (openSessionBtn) {
         openSessionBtn.disabled = !exercise;
       }
@@ -2980,6 +4172,67 @@
           mindfulnessPromptBtn.disabled = false;
         }
       });
+    }
+
+    if (breathingBtn) {
+      breathingBtn.addEventListener("click", () => {
+        resetBreathingUI();
+        if (breathingModal) {
+          openModal(breathingModal);
+        }
+      });
+    }
+
+    if (breathingCloseBtn) {
+      breathingCloseBtn.addEventListener("click", () => {
+        if (breathingSessionActive) {
+          breathingStopRequested = true;
+          finishBreathingSession(false);
+        }
+        if (breathingModal) {
+          closeModal(breathingModal);
+        }
+      });
+    }
+
+    if (breathingModal) {
+      breathingModal.addEventListener("click", event => {
+        if (event.target === breathingModal) {
+          breathingStopRequested = true;
+          finishBreathingSession(false);
+          closeModal(breathingModal);
+        }
+      });
+    }
+
+    if (breathingDurationSlider) {
+      breathingDurationSlider.addEventListener("input", () => {
+        const value = Number(breathingDurationSlider.value);
+        const clamped = Math.max(
+          BREATHING_MINUTES_MIN,
+          Math.min(BREATHING_MINUTES_MAX, Number.isFinite(value) ? value : BREATHING_DEFAULT_MINUTES)
+        );
+        breathingDurationSlider.value = clamped;
+        updateBreathingDurationLabel(clamped);
+      });
+    }
+
+    if (breathingStartBtn) {
+      breathingStartBtn.addEventListener("click", async () => {
+        await ensureAudioUnlocked();
+        startBreathingSession();
+      });
+    }
+
+    if (breathingStopBtn) {
+      breathingStopBtn.addEventListener("click", () => {
+        breathingStopRequested = true;
+        finishBreathingSession(false);
+      });
+    }
+
+    if (breathingDurationSlider || breathingModal) {
+      resetBreathingUI();
     }
 
     if (exerciseDetailsBtn) {
@@ -3168,6 +4421,8 @@
         window.location.href = "./exercise-completions.html";
       });
     }
+
+    refreshStreakIndicator().catch(() => {});
 
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {

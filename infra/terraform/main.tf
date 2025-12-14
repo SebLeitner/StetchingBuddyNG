@@ -351,7 +351,7 @@ resource "aws_lambda_function" "exercise_progress" {
       PROGRESS_TABLE_NAME = aws_dynamodb_table.exercise_completions.name
       CORS_ALLOW_ORIGIN   = "https://sbuddy.leitnersoft.com"
       CORS_ALLOW_HEADERS  = "Content-Type,Authorization,X-Amz-Date,X-Amz-Security-Token,X-Api-Key"
-      CORS_ALLOW_METHODS  = "OPTIONS,POST,GET"
+      CORS_ALLOW_METHODS  = "OPTIONS,POST,GET,DELETE"
     }
   }
 }
@@ -437,6 +437,12 @@ resource "aws_apigatewayv2_route" "exercise_progress" {
 resource "aws_apigatewayv2_route" "exercise_progress_get" {
   api_id    = aws_apigatewayv2_api.speech.id
   route_key = "GET /api/exercise-completions"
+  target    = "integrations/${aws_apigatewayv2_integration.exercise_progress.id}"
+}
+
+resource "aws_apigatewayv2_route" "exercise_progress_delete" {
+  api_id    = aws_apigatewayv2_api.speech.id
+  route_key = "DELETE /api/exercise-completions"
   target    = "integrations/${aws_apigatewayv2_integration.exercise_progress.id}"
 }
 
